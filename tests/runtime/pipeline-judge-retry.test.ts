@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+import { runTurn } from "../../src/runtime/pipeline";
+
+describe("runTurn judge retry", () => {
+  it("retries judge on low confidence and continues", async () => {
+    let attempts = 0;
+
+    const out = await runTurn({
+      judge: async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return {
+            verdict: "reject",
+            reason_code: "MISSING_PREREQ",
+            internal_reason: "low confidence first pass",
+            confidence: 0.2
+          };
+        }
+
+        return {
+          verdict: "reject",
+          reason_code: "MISSING_PREREQ",
+          internal_reason: "stable",
+          confidence: 0.95
+        };
+      },
+      narrate: async () => ({ narration_text: "You cannot do that." }),
+      state: {}
+    });
+
+    expect(attempts).toBe(2);
+    expect(out.narration_text).toBe("You cannot do that.");
+    expect(out.system_error_code).toBeUndefined();
+  });
+
+  it("returns judge low-confidence error after retries exhausted", async () => {
+    let narrateCalls = 0;
+
+    const out = await runTurn({
+      judge: async () => ({
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ",
+        internal_reason: "always uncertain",
+        confidence: 0.1
+      }),
+      narrate: async () => {
+        narrateCalls += 1;
+        return { narration_text: "unused" };
+      },
+      state: {}
+    });
+
+    expect(out.system_error_code).toBe("JUDGE_LOW_CONFIDENCE");
+    expect(out.narration_text).toMatch(/please try again/i);
+    expect(narrateCalls).toBe(0);
+  });
+
+  it("returns judge schema error when judge output remains invalid", async () => {
+    const out = await runTurn({
+      judge: async () => ({ bad: "payload" }),
+      narrate: async () => ({ narration_text: "unused" }),
+      state: {}
+    });
+
+    expect(out.system_error_code).toBe("JUDGE_SCHEMA_INVALID");
+    expect(out.narration_text).toMatch(/please try again/i);
+  });
+});

@@ -10,8 +10,8 @@ Judge runs first. Narrate is the only user-facing output stage.
 
 ## Error Domains
 
-- `reason_code`: business/gameplay outcomes (for example `MISSING_PREREQ`).
-- `system_error_code`: system/runtime failures (for example `NARRATE_SCHEMA_INVALID`).
+- `reason_code`: business/gameplay outcomes only (for example `MISSING_PREREQ`).
+- `system_error_code`: system/runtime failures (for example `JUDGE_LOW_CONFIDENCE`, `NARRATE_SCHEMA_INVALID`).
 
 These two domains are separate and should not be mixed.
 
