@@ -2,23 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 import { createNarrateAgent } from "../../src/agents/narrate-agent";
 
 describe("createNarrateAgent", () => {
-  it("calls provider with narrate schema", async () => {
+  it("forbids review-language and requires reference+narration_text in prompt", async () => {
     const provider = {
       generateStructured: vi.fn().mockResolvedValue({
-        narration_text: "You cannot do that."
+        narration_text: "You step into the corridor.",
+        reference: "Try lighting a torch before entering the tunnel."
       })
     };
 
     const agent = createNarrateAgent(provider as never);
-    const out = await agent.run({
+    await agent.run({
       verdict: "reject",
       reason_code: "MISSING_PREREQ",
-      safe_hint: "action_rejected"
+      ref_from_judge: "Find a torch first.",
+      narration_history: []
     });
 
-    expect(provider.generateStructured).toHaveBeenCalledWith(
-      expect.objectContaining({ task: "narrate", schemaName: "NarrateOutput" })
+    const call = provider.generateStructured.mock.calls[0][0];
+    expect(call.messages[0].content).toContain("reference");
+    expect(call.messages[0].content).toContain(
+      "Do not output policy-review wording"
     );
-    expect(out.narration_text).toBe("You cannot do that.");
   });
 });

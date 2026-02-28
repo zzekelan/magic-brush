@@ -2,22 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 import { createJudgeAgent } from "../../src/agents/judge-agent";
 
 describe("createJudgeAgent", () => {
-  it("calls provider with judge schema", async () => {
+  it("sends prompt instructions describing required judge output fields", async () => {
     const provider = {
       generateStructured: vi.fn().mockResolvedValue({
         verdict: "reject",
         reason_code: "MISSING_PREREQ",
         internal_reason: "x",
-        confidence: 0.9
+        confidence: 0.9,
+        ref_from_judge: "Search the room first."
       })
     };
 
     const agent = createJudgeAgent(provider as never);
-    const out = await agent.run({ raw_input_text: "look", state_snapshot: {} });
+    await agent.run({
+      raw_input_text: "look",
+      state_snapshot: {},
+      narration_history: []
+    });
 
-    expect(provider.generateStructured).toHaveBeenCalledWith(
-      expect.objectContaining({ task: "judge", schemaName: "JudgeOutput" })
-    );
-    expect(out.verdict).toBe("reject");
+    const call = provider.generateStructured.mock.calls[0][0];
+    expect(call.messages[0].content).toContain("ref_from_judge");
+    expect(call.messages[0].content).toContain("state_patch");
   });
 });
