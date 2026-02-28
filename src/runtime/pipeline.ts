@@ -1,9 +1,9 @@
 import { JudgeOutputSchema } from "../contracts/judge";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
+import { buildNarrateContext } from "../context/build-narrate-context";
 import { processCommit } from "./commit";
 import { CONFIDENCE_THRESHOLD, shouldRetryJudge } from "./retry-policy";
-import { toNarrateContext } from "./to-narrate-context";
 import { ZodError } from "zod";
 
 function systemFallback(
@@ -65,7 +65,7 @@ export async function runTurn(deps: {
   }
 
   const commitResult = processCommit(judgeResult, deps.state);
-  const narrateContext = toNarrateContext(judgeResult);
+  const narrateContext = buildNarrateContext(judgeResult);
 
   try {
     const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
