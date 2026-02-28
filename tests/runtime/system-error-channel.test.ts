@@ -8,9 +8,10 @@ describe("system error channel", () => {
         verdict: "reject",
         reason_code: "MISSING_PREREQ",
         internal_reason: "judge fallback",
-        confidence: 0.9
+        confidence: 0.9,
+        ref_from_judge: "Try searching nearby."
       }),
-      narrate: async () => ({ bad: "payload" }),
+      narrate: async () => ({ narration_text: "x" }),
       state: {}
     });
 
@@ -18,21 +19,25 @@ describe("system error channel", () => {
     expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
   });
 
-  it("returns non-schema narrate call failures with dedicated code", async () => {
+  it("does not mutate state when narrate fails", async () => {
+    const original = { hp: 10, narration_history: ["n1"] };
     const out = await runTurn({
       judge: async () => ({
-        verdict: "reject",
-        reason_code: "MISSING_PREREQ",
-        internal_reason: "judge fallback",
-        confidence: 0.9
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT",
+        internal_reason: "ok",
+        confidence: 0.95,
+        ref_from_judge: "Proceed.",
+        state_patch: { hp: 9 }
       }),
       narrate: async () => {
         throw new Error("timeout");
       },
-      state: {}
+      state: original
     });
 
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
     expect(out.narration_text).toMatch(/please try again/i);
+    expect(out.state).toEqual(original);
   });
 });
