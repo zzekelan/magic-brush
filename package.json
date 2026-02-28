@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "turn": "tsx src/cli/run-turn.ts"
   },
   "devDependencies": {
     "@esbuild/darwin-arm64": "^0.21.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8",
     "zod": "^3.24.1"

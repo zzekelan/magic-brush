@@ -19,10 +19,25 @@ These two domains are separate and should not be mixed.
 
 `internal_reason` is internal-only. It must never be sent into narrate context or user-visible output.
 
-Use `toNarrateContext()` to sanitize Judge output before any narrate call.
+Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
+
+## Run One Live Turn
+
+1. Create `.env` from `.env.example`.
+2. Set:
+   - `LLM_BASE_URL`
+   - `LLM_API_KEY`
+   - `LLM_MODEL`
+3. Run:
+
+```bash
+bun run turn -- "look around"
+```
+
+Output is JSON containing `narration_text`, `state`, and optional `system_error_code`.
 
 ## Run Tests
 
 ```bash
-npm test
+bun run test
 ```
