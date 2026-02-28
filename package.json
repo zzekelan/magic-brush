@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "turn": "bun src/cli/run-turn.ts"
+    "turn": "bun src/cli/run-turn.ts",
+    "turn:repl": "bun src/cli/run-turn-repl.ts"
   },
   "devDependencies": {
     "@esbuild/darwin-arm64": "^0.21.5",

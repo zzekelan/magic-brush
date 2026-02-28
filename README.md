@@ -4,7 +4,7 @@
 
 Each turn runs in this order:
 
-`PlayerInput -> Judge -> Validate/Retry -> EventCommit -> (approve only) StateCommit -> BuildNarrateContext -> Narrate -> Respond`
+`PlayerInput -> Judge -> Validate/Retry -> BuildNarrateContext -> Narrate -> (approve+narrate success only) StateCommit -> Respond`
 
 Judge runs first. Narrate is the only user-facing output stage.
 
@@ -34,7 +34,22 @@ Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
 bun run turn -- "look around"
 ```
 
-Output is JSON containing `narration_text`, `state`, and optional `system_error_code`.
+Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`.
+
+## REPL Mode (In-Process Memory)
+
+Run:
+
+```bash
+bun run turn:repl
+```
+
+Commands:
+
+- `/reset` clears in-memory state.
+- `/exit` exits the REPL.
+
+The REPL keeps state in memory within the same process (`state = out.state` after each turn), so gameplay can continue across prompts in one session.
 
 ## Run Tests
 
