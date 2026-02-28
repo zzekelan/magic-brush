@@ -2,3 +2,4 @@ docs/
 .worktrees/
 .DS_Store
 node_modules/
+.env
