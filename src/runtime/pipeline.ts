@@ -1,15 +1,22 @@
 import { JudgeOutputSchema } from "../contracts/judge";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
-import { buildNarrateContext } from "../context/build-narrate-context";
+import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
 import { processCommit } from "./commit";
 import { CONFIDENCE_THRESHOLD, shouldRetryJudge } from "./retry-policy";
 import { ZodError } from "zod";
 
+export type TurnResult = {
+  narration_text: string;
+  state: Record<string, unknown>;
+  visible_choices?: string[];
+  system_error_code?: string;
+};
+
 function systemFallback(
   state: Record<string, unknown>,
   system_error_code: string
-) {
+): TurnResult {
   return {
     narration_text: "System busy, please try again.",
     state,
@@ -19,9 +26,9 @@ function systemFallback(
 
 export async function runTurn(deps: {
   judge: () => Promise<unknown>;
-  narrate: (ctx: unknown) => Promise<unknown>;
+  narrate: (ctx: NarrateContext) => Promise<unknown>;
   state: Record<string, unknown>;
-}) {
+}): Promise<TurnResult> {
   let attempt = 0;
   let judgeResult: ReturnType<typeof JudgeOutputSchema.parse> | null = null;
 
