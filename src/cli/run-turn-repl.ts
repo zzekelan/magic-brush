@@ -33,6 +33,10 @@ async function main() {
 
   try {
     for (;;) {
+      if (!isOnboardingComplete(state)) {
+        console.log(`引导: ${getOnboardingPrompt(state)}`);
+      }
+
       const rawInput = await rl.question("> ");
       const text = rawInput.trim();
       if (!text) {

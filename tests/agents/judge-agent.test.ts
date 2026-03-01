@@ -29,6 +29,10 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("OUT_OF_SCOPE_ACTION");
     expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
     expect(call.messages[0].content).toContain("number in [0, 1]");
+    expect(call.messages[0].content).toContain("state_snapshot.onboarding");
+    expect(call.messages[0].content).toContain("completed");
+    expect(call.messages[0].content).toContain("role_profile");
+    expect(call.messages[0].content).toContain("world_background");
     expect(call.messages[0].content).toContain("Follow the same language as the player's raw_input_text.");
     expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
   });
