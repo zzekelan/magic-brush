@@ -30,4 +30,55 @@ describe("OpenAICompatibleProvider", () => {
       })
     );
   });
+
+  it("fails fast when completion call exceeds timeout", async () => {
+    const create = vi.fn().mockImplementation(
+      () =>
+        new Promise(() => {
+          // never resolves
+        })
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      model: "test-model",
+      createCompletion: create,
+      requestTimeoutMs: 10
+    });
+
+    await expect(
+      provider.generateStructured({
+        task: "narrate",
+        schemaName: "NarrateOutput",
+        schema: z.object({ narration_text: z.string() }),
+        messages: [{ role: "user", content: "test" }]
+      })
+    ).rejects.toThrow(/timed out/i);
+  });
+
+  it("clears timeout timer after successful completion", async () => {
+    const timerApi = {
+      setTimeout: vi.fn().mockReturnValue(123),
+      clearTimeout: vi.fn()
+    };
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "{\"narration_text\":\"ok\"}" } }]
+    });
+
+    const provider = new OpenAICompatibleProvider({
+      model: "test-model",
+      createCompletion: create,
+      requestTimeoutMs: 999,
+      timerApi
+    });
+
+    await provider.generateStructured({
+      task: "narrate",
+      schemaName: "NarrateOutput",
+      schema: z.object({ narration_text: z.string() }),
+      messages: [{ role: "user", content: "test" }]
+    });
+
+    expect(timerApi.setTimeout).toHaveBeenCalledTimes(1);
+    expect(timerApi.clearTimeout).toHaveBeenCalledWith(123);
+  });
 });

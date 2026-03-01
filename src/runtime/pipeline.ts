@@ -1,27 +1,90 @@
+import { ZodError } from "zod";
 import { JudgeOutputSchema } from "../contracts/judge";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
 import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
-import { processCommit } from "./commit";
+import { commitApprovedState } from "./commit";
 import { CONFIDENCE_THRESHOLD, shouldRetryJudge } from "./retry-policy";
-import { ZodError } from "zod";
 
 export type TurnResult = {
   narration_text: string;
+  reference: string;
   state: Record<string, unknown>;
-  visible_choices?: string[];
   system_error_code?: string;
+  system_error_detail?: string;
 };
 
 function systemFallback(
   state: Record<string, unknown>,
-  system_error_code: string
+  systemErrorCode: string,
+  systemErrorDetail?: string
 ): TurnResult {
   return {
     narration_text: "System busy, please try again.",
+    reference: "Try again with a different action in a moment.",
     state,
-    system_error_code
+    system_error_code: systemErrorCode,
+    system_error_detail: systemErrorDetail
   };
+}
+
+function extractErrorDetail(error: unknown): string | undefined {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown provider error object";
+    }
+  }
+
+  return undefined;
+}
+
+function summarizeZodError(error: ZodError): string {
+  return error.issues
+    .slice(0, 5)
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeJudgeCandidate(raw: unknown): unknown {
+  if (!isRecord(raw)) {
+    return raw;
+  }
+
+  if (raw.verdict !== "reject") {
+    return raw;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(raw, "state_patch")) {
+    return raw;
+  }
+
+  const { state_patch: _ignored, ...rest } = raw;
+  return rest;
+}
+
+function readNarrationHistory(state: Record<string, unknown>): string[] {
+  const raw = state.narration_history;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((item): item is string => typeof item === "string");
 }
 
 export async function runTurn(deps: {
@@ -34,7 +97,9 @@ export async function runTurn(deps: {
 
   while (judgeResult === null) {
     try {
-      const candidate = JudgeOutputSchema.parse(await deps.judge());
+      const candidate = JudgeOutputSchema.parse(
+        sanitizeJudgeCandidate(await deps.judge())
+      );
       const needRetry = shouldRetryJudge({
         confidence: candidate.confidence,
         schemaValid: true,
@@ -64,27 +129,54 @@ export async function runTurn(deps: {
       }
 
       if (error instanceof ZodError) {
-        return systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID);
+        return systemFallback(
+          deps.state,
+          SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID,
+          summarizeZodError(error)
+        );
       }
 
-      return systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED);
+      return systemFallback(
+        deps.state,
+        SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED,
+        extractErrorDetail(error)
+      );
     }
   }
 
-  const commitResult = processCommit(judgeResult, deps.state);
-  const narrateContext = buildNarrateContext(judgeResult);
+  const narrateContext = buildNarrateContext({
+    judge: judgeResult,
+    narrationHistory: readNarrationHistory(deps.state)
+  });
 
   try {
     const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
+    const nextState =
+      judgeResult.verdict === "approve"
+        ? commitApprovedState({
+            state: deps.state,
+            statePatch: judgeResult.state_patch,
+            narrationText: narrateResult.narration_text
+          })
+        : deps.state;
+
     return {
       ...narrateResult,
-      state: commitResult.newState
+      state: nextState
     };
   } catch (error) {
     if (error instanceof ZodError) {
-      return systemFallback(commitResult.newState, SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID);
+      return systemFallback(
+        deps.state,
+        SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID,
+        summarizeZodError(error)
+      );
     }
 
-    return systemFallback(commitResult.newState, SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED);
+    return systemFallback(
+      deps.state,
+      SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,
+      extractErrorDetail(error)
+    );
   }
 }

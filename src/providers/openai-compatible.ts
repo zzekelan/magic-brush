@@ -25,24 +25,48 @@ type CompletionCreateOutput = {
 };
 
 type CompletionCreate = (input: CompletionCreateInput) => Promise<CompletionCreateOutput>;
+type TimeoutHandle = ReturnType<typeof setTimeout>;
+type TimerApi = {
+  setTimeout: (callback: () => void, timeoutMs: number) => TimeoutHandle;
+  clearTimeout: (handle: TimeoutHandle) => void;
+};
 
 export class OpenAICompatibleProvider implements LlmProvider {
   private readonly model: string;
   private readonly createCompletion: CompletionCreate;
+  private readonly requestTimeoutMs: number;
+  private readonly timerApi: TimerApi;
 
-  constructor(input: { model: string; createCompletion: CompletionCreate }) {
+  constructor(input: {
+    model: string;
+    createCompletion: CompletionCreate;
+    requestTimeoutMs?: number;
+    timerApi?: TimerApi;
+  }) {
     this.model = input.model;
     this.createCompletion = input.createCompletion;
+    this.requestTimeoutMs = input.requestTimeoutMs ?? 30000;
+    this.timerApi = input.timerApi ?? {
+      setTimeout: (callback, timeoutMs) => setTimeout(callback, timeoutMs),
+      clearTimeout: (handle) => clearTimeout(handle)
+    };
   }
 
-  static fromConfig(input: { baseUrl: string; apiKey: string; model: string }) {
+  static fromConfig(input: {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    timeoutMs: number;
+  }) {
     const client = new OpenAI({
       baseURL: input.baseUrl,
-      apiKey: input.apiKey
+      apiKey: input.apiKey,
+      timeout: input.timeoutMs
     });
 
     return new OpenAICompatibleProvider({
       model: input.model,
+      requestTimeoutMs: input.timeoutMs,
       createCompletion: async (request) =>
         client.chat.completions.create(request as never) as Promise<CompletionCreateOutput>
     });
@@ -51,18 +75,40 @@ export class OpenAICompatibleProvider implements LlmProvider {
   async generateStructured<TSchema extends z.ZodTypeAny>(
     request: GenerateStructuredRequest<TSchema>
   ): Promise<z.infer<TSchema>> {
-    const completion = await this.createCompletion({
-      model: this.model,
-      messages: request.messages,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: request.schemaName,
-          strict: true,
-          schema: zodToJsonSchema(request.schema, request.schemaName) as Record<string, unknown>
-        }
-      }
+    let timeoutHandle: TimeoutHandle | undefined;
+    const timeoutPromise = new Promise<CompletionCreateOutput>((_, reject) => {
+      timeoutHandle = this.timerApi.setTimeout(
+        () =>
+          reject(new Error(`Provider request timed out after ${this.requestTimeoutMs}ms`)),
+        this.requestTimeoutMs
+      );
     });
+
+    let completion: CompletionCreateOutput;
+    try {
+      completion = await Promise.race([
+        this.createCompletion({
+          model: this.model,
+          messages: request.messages,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: request.schemaName,
+              strict: true,
+              schema: zodToJsonSchema(
+                request.schema,
+                request.schemaName
+              ) as Record<string, unknown>
+            }
+          }
+        }),
+        timeoutPromise
+      ]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        this.timerApi.clearTimeout(timeoutHandle);
+      }
+    }
 
     const content = completion.choices?.[0]?.message?.content;
     if (!content) {

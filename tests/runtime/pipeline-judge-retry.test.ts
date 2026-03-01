@@ -13,7 +13,8 @@ describe("runTurn judge retry", () => {
             verdict: "reject",
             reason_code: "MISSING_PREREQ",
             internal_reason: "low confidence first pass",
-            confidence: 0.2
+            confidence: 0.2,
+            ref_from_judge: "Try inspecting the room."
           };
         }
 
@@ -21,10 +22,14 @@ describe("runTurn judge retry", () => {
           verdict: "reject",
           reason_code: "MISSING_PREREQ",
           internal_reason: "stable",
-          confidence: 0.95
+          confidence: 0.95,
+          ref_from_judge: "Try inspecting the room."
         };
       },
-      narrate: async () => ({ narration_text: "You cannot do that." }),
+      narrate: async () => ({
+        narration_text: "You cannot do that.",
+        reference: "Inspect the room first."
+      }),
       state: {}
     });
 
@@ -41,11 +46,12 @@ describe("runTurn judge retry", () => {
         verdict: "reject",
         reason_code: "MISSING_PREREQ",
         internal_reason: "always uncertain",
-        confidence: 0.1
+        confidence: 0.1,
+        ref_from_judge: "Try inspecting the room."
       }),
       narrate: async () => {
         narrateCalls += 1;
-        return { narration_text: "unused" };
+        return { narration_text: "unused", reference: "unused" };
       },
       state: {}
     });
@@ -58,7 +64,7 @@ describe("runTurn judge retry", () => {
   it("returns judge schema error when judge output remains invalid", async () => {
     const out = await runTurn({
       judge: async () => ({ bad: "payload" }),
-      narrate: async () => ({ narration_text: "unused" }),
+      narrate: async () => ({ narration_text: "unused", reference: "unused" }),
       state: {}
     });
 

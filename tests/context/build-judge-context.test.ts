@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildJudgeContext } from "../../src/context/build-judge-context";
 
 describe("buildJudgeContext", () => {
-  it("builds a deterministic judge context from input and state", () => {
-    const ctx = buildJudgeContext({
+  it("includes narration_history from state, defaulting to empty list", () => {
+    const withHistory = buildJudgeContext({
       rawInputText: "open the door",
-      state: { hp: 10, room: "hall" }
+      state: { hp: 10, narration_history: ["turn1", "turn2"] }
+    });
+    expect(withHistory.narration_history).toEqual(["turn1", "turn2"]);
+
+    const withoutHistory = buildJudgeContext({
+      rawInputText: "look",
+      state: { hp: 10 }
     });
 
-    expect(ctx.raw_input_text).toBe("open the door");
-    expect(ctx.state_snapshot).toEqual({ hp: 10, room: "hall" });
+    expect(withoutHistory.narration_history).toEqual([]);
   });
 });

@@ -1,23 +1,25 @@
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+const HISTORY_LIMIT = 50;
+
+function readHistory(state: Record<string, unknown>): string[] {
+  const raw = state.narration_history;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((item): item is string => typeof item === "string");
 }
 
-export function processCommit(
-  judge: { verdict: "approve" | "reject"; state_patch?: unknown },
-  state: Record<string, unknown>
-) {
-  if (judge.verdict === "approve" && isRecord(judge.state_patch)) {
-    return {
-      eventCommitted: true,
-      newState: {
-        ...state,
-        ...judge.state_patch
-      }
-    };
-  }
+export function commitApprovedState(input: {
+  state: Record<string, unknown>;
+  statePatch: Record<string, unknown>;
+  narrationText: string;
+}): Record<string, unknown> {
+  const narrationHistory = [...readHistory(input.state), input.narrationText].slice(
+    -HISTORY_LIMIT
+  );
 
   return {
-    eventCommitted: true,
-    newState: state
+    ...input.state,
+    ...input.statePatch,
+    narration_history: narrationHistory
   };
 }
