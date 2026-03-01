@@ -1,4 +1,4 @@
-export const MAX_RETRY = 2;
+export const MAX_RETRY = 3;
 export const CONFIDENCE_THRESHOLD = 0.6;
 
 export function shouldRetryJudge(input: {
@@ -15,4 +15,12 @@ export function shouldRetryJudge(input: {
   }
 
   return input.confidence < CONFIDENCE_THRESHOLD;
+}
+
+export function shouldRetryNarrate(input: { schemaValid: boolean; attempt: number }): boolean {
+  if (input.attempt >= MAX_RETRY) {
+    return false;
+  }
+
+  return true;
 }

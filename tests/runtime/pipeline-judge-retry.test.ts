@@ -6,6 +6,7 @@ describe("runTurn judge retry", () => {
     let attempts = 0;
 
     const out = await runTurn({
+      rawInputText: "inspect room",
       judge: async () => {
         attempts += 1;
         if (attempts === 1) {
@@ -42,6 +43,7 @@ describe("runTurn judge retry", () => {
     let narrateCalls = 0;
 
     const out = await runTurn({
+      rawInputText: "inspect room",
       judge: async () => ({
         verdict: "reject",
         reason_code: "MISSING_PREREQ",
@@ -63,6 +65,7 @@ describe("runTurn judge retry", () => {
 
   it("returns judge schema error when judge output remains invalid", async () => {
     const out = await runTurn({
+      rawInputText: "inspect room",
       judge: async () => ({ bad: "payload" }),
       narrate: async () => ({ narration_text: "unused", reference: "unused" }),
       state: {}

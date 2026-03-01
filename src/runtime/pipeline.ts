@@ -4,7 +4,7 @@ import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
 import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
 import { commitApprovedInteraction } from "./commit";
-import { CONFIDENCE_THRESHOLD, shouldRetryJudge } from "./retry-policy";
+import { CONFIDENCE_THRESHOLD, shouldRetryJudge, shouldRetryNarrate } from "./retry-policy";
 
 export type TurnResult = {
   narration_text: string;
@@ -143,34 +143,47 @@ export async function runTurn(deps: {
     state: deps.state
   });
 
-  try {
-    const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
-    const nextState =
-      judgeResult.verdict === "approve"
-        ? commitApprovedInteraction({
-            state: deps.state,
-            rawInputText: deps.rawInputText,
-            narrationText: narrateResult.narration_text
-          })
-        : deps.state;
+  let narrateAttempt = 0;
+  for (;;) {
+    try {
+      const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
+      const nextState =
+        judgeResult.verdict === "approve"
+          ? commitApprovedInteraction({
+              state: deps.state,
+              rawInputText: deps.rawInputText,
+              narrationText: narrateResult.narration_text
+            })
+          : deps.state;
 
-    return {
-      ...narrateResult,
-      state: nextState
-    };
-  } catch (error) {
-    if (error instanceof ZodError) {
+      return {
+        ...narrateResult,
+        state: nextState
+      };
+    } catch (error) {
+      const needRetry = shouldRetryNarrate({
+        schemaValid: !(error instanceof ZodError),
+        attempt: narrateAttempt
+      });
+
+      if (needRetry) {
+        narrateAttempt += 1;
+        continue;
+      }
+
+      if (error instanceof ZodError) {
+        return systemFallback(
+          deps.state,
+          SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID,
+          summarizeZodError(error)
+        );
+      }
+
       return systemFallback(
         deps.state,
-        SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID,
-        summarizeZodError(error)
+        SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,
+        extractErrorDetail(error)
       );
     }
-
-    return systemFallback(
-      deps.state,
-      SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,
-      extractErrorDetail(error)
-    );
   }
 }
