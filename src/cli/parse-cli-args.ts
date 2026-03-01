@@ -19,7 +19,7 @@ export function parseTurnArgs(argv: string[]): { rawInputText: string; debug: bo
   const rawInputText = positional[0]?.trim();
 
   if (!rawInputText) {
-    throw new Error('Missing player input. Usage: bun run turn -- [--debug] "look around"');
+    throw new Error('Missing player input. Usage: bun run turn --debug "look around"');
   }
 
   return { rawInputText, debug };

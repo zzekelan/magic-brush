@@ -25,7 +25,15 @@ describe("system error channel", () => {
   it("does not mutate state when narrate fails", async () => {
     const original = {
       hp: 10,
-      approved_interaction_history: [{ raw_input_text: "look", narration_text: "n1" }]
+      approved_interaction_history: [{ raw_input_text: "look", narration_text: "n1" }],
+      conversation_context: [
+        {
+          raw_input_text: "look",
+          narration_text: "n1",
+          verdict: "approve",
+          reason_code: "RULE_CONFLICT"
+        }
+      ]
     };
     const out = await runTurn({
       rawInputText: "open gate",

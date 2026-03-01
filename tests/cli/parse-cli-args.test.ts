@@ -8,6 +8,12 @@ describe("parseTurnArgs", () => {
       debug: true
     });
   });
+
+  it("shows usage with bun run turn --debug when input is missing", () => {
+    expect(() => parseTurnArgs(["--debug"])).toThrow(
+      /Usage: bun run turn --debug "look around"/i
+    );
+  });
 });
 
 describe("parseReplArgs", () => {

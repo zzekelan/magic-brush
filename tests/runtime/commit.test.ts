@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { commitApprovedInteraction } from "../../src/runtime/commit";
+import {
+  commitApprovedInteraction,
+  commitConversationContext
+} from "../../src/runtime/commit";
 
 describe("commitApprovedInteraction", () => {
   it("appends an approved interaction and preserves existing state", () => {
@@ -39,5 +42,100 @@ describe("commitApprovedInteraction", () => {
       raw_input_text: "latest-input",
       narration_text: "latest-narration"
     });
+  });
+});
+
+describe("commitConversationContext", () => {
+  it("appends a reject turn and preserves existing world state", () => {
+    const out = commitConversationContext({
+      state: {
+        hp: 10
+      },
+      rawInputText: "open gate",
+      narrationText: "The gate remains shut.",
+      verdict: "reject",
+      reasonCode: "MISSING_PREREQ"
+    });
+
+    expect(out.hp).toBe(10);
+    expect(out.conversation_context).toEqual([
+      {
+        raw_input_text: "open gate",
+        narration_text: "The gate remains shut.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      }
+    ]);
+  });
+
+  it("keeps only latest 2 conversation_context entries", () => {
+    const out = commitConversationContext({
+      state: {
+        conversation_context: [
+          {
+            raw_input_text: "look",
+            narration_text: "You scan the room.",
+            verdict: "approve",
+            reason_code: "RULE_CONFLICT"
+          },
+          {
+            raw_input_text: "open gate",
+            narration_text: "The gate does not move.",
+            verdict: "reject",
+            reason_code: "MISSING_PREREQ"
+          }
+        ]
+      },
+      rawInputText: "search fountain",
+      narrationText: "You notice a glint below the moss.",
+      verdict: "approve",
+      reasonCode: "RULE_CONFLICT"
+    });
+
+    expect(out.conversation_context).toEqual([
+      {
+        raw_input_text: "open gate",
+        narration_text: "The gate does not move.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      },
+      {
+        raw_input_text: "search fountain",
+        narration_text: "You notice a glint below the moss.",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      }
+    ]);
+  });
+
+  it("filters malformed legacy entries before appending", () => {
+    const out = commitConversationContext({
+      state: {
+        conversation_context: [
+          { raw_input_text: "look", narration_text: "ok", verdict: "approve", reason_code: "RULE_CONFLICT" },
+          { raw_input_text: "bad-only" },
+          "oops"
+        ]
+      },
+      rawInputText: "open gate",
+      narrationText: "The lock clicks but holds.",
+      verdict: "reject",
+      reasonCode: "MISSING_PREREQ"
+    });
+
+    expect(out.conversation_context).toEqual([
+      {
+        raw_input_text: "look",
+        narration_text: "ok",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      },
+      {
+        raw_input_text: "open gate",
+        narration_text: "The lock clicks but holds.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      }
+    ]);
   });
 });

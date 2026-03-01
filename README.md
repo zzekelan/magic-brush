@@ -48,7 +48,7 @@ Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
 3. Run:
 
 ```bash
-bun run turn -- "look around"
+bun run turn "look around"
 ```
 
 Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`.
@@ -56,7 +56,7 @@ Output is JSON containing `narration_text`, `reference`, `state`, and optional `
 Use `--debug` to include runtime diagnostics:
 
 ```bash
-bun run turn -- --debug "look around"
+bun run turn --debug "look around"
 ```
 
 With `--debug`, response adds `debug` containing attempts, context snapshots, and detailed error diagnostics (including `system_error_detail`).
@@ -72,7 +72,7 @@ bun run turn:repl
 Or enable debug diagnostics for each turn:
 
 ```bash
-bun run turn:repl -- --debug
+bun run turn:repl --debug
 ```
 
 Commands:
@@ -93,6 +93,19 @@ State history is runtime-owned under `state.approved_interaction_history` and re
 
 History keeps the latest 50 approved interactions.
 
+Runtime also stores short dialogue continuity memory under `state.conversation_context` for both approved and rejected successful turns:
+
+```json
+{
+  "raw_input_text": "open gate",
+  "narration_text": "The gate remains shut.",
+  "verdict": "reject",
+  "reason_code": "MISSING_PREREQ"
+}
+```
+
+`conversation_context` keeps only the latest 2 entries and does not indicate world-state mutation.
+
 ## Run Tests
 
 ```bash
@@ -104,7 +117,7 @@ bun run test
 If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:
 
 ```bash
-LLM_TIMEOUT_MS=8000 bun run turn -- "look around"
+LLM_TIMEOUT_MS=8000 bun run turn "look around"
 ```
 
 ```bash

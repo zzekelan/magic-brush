@@ -10,10 +10,12 @@ const NARRATE_SYSTEM_PROMPT = [
   "- verdict: approve or reject.",
   "- reason_code: gameplay reason enum.",
   "- ref_from_judge: direct guidance sentence from judge.",
-  "- state_snapshot: current world state before this turn.",
+  "- state_snapshot: current world state before this turn; may include conversation_context.",
   "Output fields:",
   "- narration_text: immersive in-world narration for this turn.",
   "- reference: concise player guidance sentence.",
+  "Use conversation_context for dialogue continuity when available.",
+  "Do not treat rejected entries as world facts.",
   "Follow the same language as the player's raw_input_text.",
   "Do not include any keys outside the schema.",
   "Do not output policy-review wording such as approved, blocked, or safety review."

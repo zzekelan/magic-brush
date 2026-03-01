@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runTurn } from "../../src/runtime/pipeline";
 
 describe("runTurn", () => {
-  it("does not commit state when verdict is reject", async () => {
+  it("records reject turn in conversation_context without mutating approved history", async () => {
     const out = await runTurn({
       rawInputText: "open gate",
       judge: async () => ({
@@ -20,20 +20,40 @@ describe("runTurn", () => {
         hp: 10,
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "Old approved narration." }
+        ],
+        conversation_context: [
+          {
+            raw_input_text: "inspect gate",
+            narration_text: "The hinges are rusted.",
+            verdict: "approve",
+            reason_code: "RULE_CONFLICT"
+          }
         ]
       }
     });
 
-    expect(out.state).toEqual({
-      hp: 10,
-      approved_interaction_history: [
-        { raw_input_text: "look", narration_text: "Old approved narration." }
-      ]
-    });
+    expect(out.state.hp).toBe(10);
+    expect(out.state.approved_interaction_history).toEqual([
+      { raw_input_text: "look", narration_text: "Old approved narration." }
+    ]);
+    expect(out.state.conversation_context).toEqual([
+      {
+        raw_input_text: "inspect gate",
+        narration_text: "The hinges are rusted.",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      },
+      {
+        raw_input_text: "open gate",
+        narration_text: "The gate remains shut.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      }
+    ]);
     expect(out.reference).toBe("Search the fountain area first.");
   });
 
-  it("appends approved_interaction_history only on approve+narrate success", async () => {
+  it("updates approved history and conversation_context on approve+narrate success", async () => {
     const out = await runTurn({
       rawInputText: "open gate",
       judge: async () => ({
@@ -52,6 +72,14 @@ describe("runTurn", () => {
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "n1" },
           { raw_input_text: "inspect gate", narration_text: "n2" }
+        ],
+        conversation_context: [
+          {
+            raw_input_text: "inspect gate",
+            narration_text: "n2",
+            verdict: "approve",
+            reason_code: "RULE_CONFLICT"
+          }
         ]
       }
     });
@@ -63,6 +91,20 @@ describe("runTurn", () => {
       raw_input_text: "open gate",
       narration_text: "You push the heavy gate open."
     });
+    expect(out.state.conversation_context).toEqual([
+      {
+        raw_input_text: "inspect gate",
+        narration_text: "n2",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      },
+      {
+        raw_input_text: "open gate",
+        narration_text: "You push the heavy gate open.",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      }
+    ]);
     expect(out.reference).toBe("Step into the courtyard.");
   });
 });

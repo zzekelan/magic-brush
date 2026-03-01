@@ -3,7 +3,7 @@ import { JudgeOutputSchema } from "../contracts/judge";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
 import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
-import { commitApprovedInteraction } from "./commit";
+import { commitApprovedInteraction, commitConversationContext } from "./commit";
 import { CONFIDENCE_THRESHOLD, shouldRetryJudge, shouldRetryNarrate } from "./retry-policy";
 
 type DebugStateSnapshot = {
@@ -265,7 +265,7 @@ export async function runTurn(deps: {
     try {
       narrateAttempts += 1;
       const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
-      const nextState =
+      const stateAfterApprovedCommit =
         judgeResult.verdict === "approve"
           ? commitApprovedInteraction({
               state: deps.state,
@@ -273,6 +273,13 @@ export async function runTurn(deps: {
               narrationText: narrateResult.narration_text
             })
           : deps.state;
+      const nextState = commitConversationContext({
+        state: stateAfterApprovedCommit,
+        rawInputText: deps.rawInputText,
+        narrationText: narrateResult.narration_text,
+        verdict: judgeResult.verdict,
+        reasonCode: judgeResult.reason_code
+      });
 
       return withDebug({
         ...narrateResult,
