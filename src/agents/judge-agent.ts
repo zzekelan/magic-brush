@@ -8,7 +8,6 @@ const JUDGE_SYSTEM_PROMPT = [
   "Input fields:",
   "- raw_input_text: player's current command.",
   "- state_snapshot: current world state before this turn.",
-  "- narration_history: recent approved narrations (oldest to newest).",
   "Output fields:",
   "- verdict: approve or reject.",
   "- reason_code: must be exactly one of RULE_CONFLICT, MISSING_PREREQ, OUT_OF_SCOPE_ACTION, SAFETY_BLOCKED.",

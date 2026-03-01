@@ -79,15 +79,8 @@ function sanitizeJudgeCandidate(raw: unknown): unknown {
   return rest;
 }
 
-function readNarrationHistory(state: Record<string, unknown>): string[] {
-  const raw = state.narration_history;
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  return raw.filter((item): item is string => typeof item === "string");
-}
-
 export async function runTurn(deps: {
+  rawInputText: string;
   judge: () => Promise<unknown>;
   narrate: (ctx: NarrateContext) => Promise<unknown>;
   state: Record<string, unknown>;
@@ -145,8 +138,9 @@ export async function runTurn(deps: {
   }
 
   const narrateContext = buildNarrateContext({
+    rawInputText: deps.rawInputText,
     judge: judgeResult,
-    narrationHistory: readNarrationHistory(deps.state)
+    state: deps.state
   });
 
   try {

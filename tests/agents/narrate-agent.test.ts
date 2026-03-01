@@ -12,15 +12,18 @@ describe("createNarrateAgent", () => {
 
     const agent = createNarrateAgent(provider as never);
     await agent.run({
+      raw_input_text: "open gate",
       verdict: "reject",
       reason_code: "MISSING_PREREQ",
       ref_from_judge: "Find a torch first.",
-      narration_history: []
+      state_snapshot: { approved_interaction_history: [] }
     });
 
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.messages[0].content).toContain("reference");
     expect(call.messages[0].content).toContain("json object");
+    expect(call.messages[0].content).toContain("raw_input_text");
+    expect(call.messages[0].content).toContain("state_snapshot");
     expect(call.messages[0].content).toContain(
       "Do not output policy-review wording"
     );

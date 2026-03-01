@@ -15,6 +15,7 @@ export async function runLiveTurn(input: {
   });
 
   return runTurn({
+    rawInputText: input.rawInputText,
     judge: () => input.judgeAgent.run(judgeContext),
     narrate: (ctx) => input.narrateAgent.run(ctx),
     state: input.state
