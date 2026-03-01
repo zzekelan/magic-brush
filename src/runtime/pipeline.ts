@@ -48,6 +48,16 @@ function extractErrorDetail(error: unknown): string | undefined {
   return undefined;
 }
 
+function summarizeZodError(error: ZodError): string {
+  return error.issues
+    .slice(0, 5)
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ");
+}
+
 function readNarrationHistory(state: Record<string, unknown>): string[] {
   const raw = state.narration_history;
   if (!Array.isArray(raw)) {
@@ -96,7 +106,11 @@ export async function runTurn(deps: {
       }
 
       if (error instanceof ZodError) {
-        return systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID);
+        return systemFallback(
+          deps.state,
+          SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID,
+          summarizeZodError(error)
+        );
       }
 
       return systemFallback(
@@ -129,7 +143,11 @@ export async function runTurn(deps: {
     };
   } catch (error) {
     if (error instanceof ZodError) {
-      return systemFallback(deps.state, SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID);
+      return systemFallback(
+        deps.state,
+        SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID,
+        summarizeZodError(error)
+      );
     }
 
     return systemFallback(

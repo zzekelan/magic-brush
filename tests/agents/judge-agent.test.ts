@@ -24,5 +24,9 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("ref_from_judge");
     expect(call.messages[0].content).toContain("state_patch");
     expect(call.messages[0].content).toContain("json object");
+    expect(call.messages[0].content).toContain("RULE_CONFLICT");
+    expect(call.messages[0].content).toContain("MISSING_PREREQ");
+    expect(call.messages[0].content).toContain("OUT_OF_SCOPE_ACTION");
+    expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
   });
 });

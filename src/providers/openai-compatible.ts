@@ -50,8 +50,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     const client = new OpenAI({
       baseURL: input.baseUrl,
       apiKey: input.apiKey,
-      timeout: input.timeoutMs,
-      maxRetries: 0
+      timeout: input.timeoutMs
     });
 
     return new OpenAICompatibleProvider({

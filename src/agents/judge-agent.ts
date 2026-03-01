@@ -11,7 +11,7 @@ const JUDGE_SYSTEM_PROMPT = [
   "- narration_history: recent approved narrations (oldest to newest).",
   "Output fields:",
   "- verdict: approve or reject.",
-  "- reason_code: gameplay reason enum.",
+  "- reason_code: must be exactly one of RULE_CONFLICT, MISSING_PREREQ, OUT_OF_SCOPE_ACTION, SAFETY_BLOCKED.",
   "- internal_reason: private diagnostic reason.",
   "- confidence: number in [0, 1].",
   "- ref_from_judge: one concrete player-facing guidance sentence.",
