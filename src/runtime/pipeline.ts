@@ -58,6 +58,27 @@ function summarizeZodError(error: ZodError): string {
     .join("; ");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeJudgeCandidate(raw: unknown): unknown {
+  if (!isRecord(raw)) {
+    return raw;
+  }
+
+  if (raw.verdict !== "reject") {
+    return raw;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(raw, "state_patch")) {
+    return raw;
+  }
+
+  const { state_patch: _ignored, ...rest } = raw;
+  return rest;
+}
+
 function readNarrationHistory(state: Record<string, unknown>): string[] {
   const raw = state.narration_history;
   if (!Array.isArray(raw)) {
@@ -76,7 +97,9 @@ export async function runTurn(deps: {
 
   while (judgeResult === null) {
     try {
-      const candidate = JudgeOutputSchema.parse(await deps.judge());
+      const candidate = JudgeOutputSchema.parse(
+        sanitizeJudgeCandidate(await deps.judge())
+      );
       const needRetry = shouldRetryJudge({
         confidence: candidate.confidence,
         schemaValid: true,

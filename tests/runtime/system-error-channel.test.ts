@@ -56,4 +56,30 @@ describe("system error channel", () => {
     expect(out.system_error_detail).toContain("ServiceUnavailable");
     expect(out.system_error_detail).toContain("abc123");
   });
+
+  it("tolerates extra state_patch on reject and continues", async () => {
+    let narrateCalls = 0;
+    const out = await runTurn({
+      judge: async () => ({
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ",
+        internal_reason: "missing key",
+        confidence: 0.9,
+        ref_from_judge: "Find the key first.",
+        state_patch: { hp: 0 }
+      }),
+      narrate: async () => {
+        narrateCalls += 1;
+        return {
+          narration_text: "The gate remains sealed.",
+          reference: "Search the fountain for a key."
+        };
+      },
+      state: { hp: 10 }
+    });
+
+    expect(narrateCalls).toBe(1);
+    expect(out.system_error_code).toBeUndefined();
+    expect(out.state).toEqual({ hp: 10 });
+  });
 });
