@@ -11,8 +11,7 @@ const JudgeBaseSchema = z
   .strict();
 
 const JudgeApproveSchema = JudgeBaseSchema.extend({
-  verdict: z.literal("approve"),
-  state_patch: z.record(z.unknown())
+  verdict: z.literal("approve")
 }).strict();
 
 const JudgeRejectSchema = JudgeBaseSchema.extend({

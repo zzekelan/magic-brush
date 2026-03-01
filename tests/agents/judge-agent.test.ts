@@ -22,13 +22,12 @@ describe("createJudgeAgent", () => {
 
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.messages[0].content).toContain("ref_from_judge");
-    expect(call.messages[0].content).toContain("state_patch");
+    expect(call.messages[0].content).not.toContain("state_patch");
     expect(call.messages[0].content).toContain("json object");
     expect(call.messages[0].content).toContain("RULE_CONFLICT");
     expect(call.messages[0].content).toContain("MISSING_PREREQ");
     expect(call.messages[0].content).toContain("OUT_OF_SCOPE_ACTION");
     expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
-    expect(call.messages[0].content).toContain("must never be null");
-    expect(call.messages[0].content).toContain("omit this key entirely");
+    expect(call.messages[0].content).toContain("number in [0, 1]");
   });
 });

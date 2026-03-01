@@ -2,27 +2,27 @@ import { describe, expect, it } from "vitest";
 import { JudgeOutputSchema } from "../../src/contracts/judge";
 
 describe("JudgeOutputSchema", () => {
-  it("requires ref_from_judge for approve", () => {
+  it("accepts approve payload without state_patch", () => {
     const parsed = JudgeOutputSchema.parse({
       verdict: "approve",
       reason_code: "RULE_CONFLICT",
       internal_reason: "ok",
       confidence: 0.9,
-      ref_from_judge: "Try checking the nearby altar.",
-      state_patch: { hp: -1 }
+      ref_from_judge: "Try checking the nearby altar."
     });
 
     expect(parsed.ref_from_judge).toBe("Try checking the nearby altar.");
   });
 
-  it("rejects approve payload when state_patch is missing", () => {
+  it("rejects legacy state_patch field on approve payload", () => {
     expect(() =>
       JudgeOutputSchema.parse({
         verdict: "approve",
         reason_code: "RULE_CONFLICT",
         internal_reason: "ok",
         confidence: 0.9,
-        ref_from_judge: "Try another action."
+        ref_from_judge: "Try another action.",
+        state_patch: { hp: -1 }
       })
     ).toThrow();
   });
