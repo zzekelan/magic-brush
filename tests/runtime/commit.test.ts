@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { commitApprovedState } from "../../src/runtime/commit";
+import { commitApprovedInteraction } from "../../src/runtime/commit";
 
-describe("commitApprovedState", () => {
-  it("applies patch and appends latest narration", () => {
-    const out = commitApprovedState({
-      state: { hp: 10, narration_history: ["n1", "n2"] },
-      statePatch: { hp: 9, room: "gate" },
+describe("commitApprovedInteraction", () => {
+  it("appends an approved interaction and preserves existing state", () => {
+    const out = commitApprovedInteraction({
+      state: {
+        hp: 10,
+        approved_interaction_history: [{ raw_input_text: "look", narration_text: "You scan." }]
+      },
+      rawInputText: "open gate",
       narrationText: "You push the heavy gate open."
     });
-    expect(out.hp).toBe(9);
-    expect(out.room).toBe("gate");
-    expect(out.narration_history).toEqual(["n1", "n2", "You push the heavy gate open."]);
+    expect(out.hp).toBe(10);
+    expect(out.approved_interaction_history).toEqual([
+      { raw_input_text: "look", narration_text: "You scan." },
+      { raw_input_text: "open gate", narration_text: "You push the heavy gate open." }
+    ]);
   });
 
-  it("limits narration_history to 50 entries", () => {
-    const history = Array.from({ length: 55 }, (_, i) => `n${i + 1}`);
-    const out = commitApprovedState({
-      state: { narration_history: history },
-      statePatch: {},
-      narrationText: "latest"
+  it("limits approved_interaction_history to 50 entries", () => {
+    const history = Array.from({ length: 55 }, (_, i) => ({
+      raw_input_text: `in${i + 1}`,
+      narration_text: `n${i + 1}`
+    }));
+    const out = commitApprovedInteraction({
+      state: { approved_interaction_history: history },
+      rawInputText: "latest-input",
+      narrationText: "latest-narration"
     });
-    expect((out.narration_history as string[]).length).toBe(50);
-    expect((out.narration_history as string[])[0]).toBe("n7");
-    expect((out.narration_history as string[]).at(-1)).toBe("latest");
+    expect((out.approved_interaction_history as Array<Record<string, unknown>>).length).toBe(50);
+    expect(
+      (out.approved_interaction_history as Array<Record<string, unknown>>)[0]
+    ).toEqual({
+      raw_input_text: "in7",
+      narration_text: "n7"
+    });
+    expect((out.approved_interaction_history as Array<Record<string, unknown>>).at(-1)).toEqual({
+      raw_input_text: "latest-input",
+      narration_text: "latest-narration"
+    });
   });
 });

@@ -4,6 +4,7 @@ import { runTurn } from "../../src/runtime/pipeline";
 describe("system error channel", () => {
   it("returns safe fallback on narrate schema failures", async () => {
     const out = await runTurn({
+      rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
         reason_code: "MISSING_PREREQ",
@@ -21,15 +22,18 @@ describe("system error channel", () => {
   });
 
   it("does not mutate state when narrate fails", async () => {
-    const original = { hp: 10, narration_history: ["n1"] };
+    const original = {
+      hp: 10,
+      approved_interaction_history: [{ raw_input_text: "look", narration_text: "n1" }]
+    };
     const out = await runTurn({
+      rawInputText: "open gate",
       judge: async () => ({
         verdict: "approve",
         reason_code: "RULE_CONFLICT",
         internal_reason: "ok",
         confidence: 0.95,
-        ref_from_judge: "Proceed.",
-        state_patch: { hp: 9 }
+        ref_from_judge: "Proceed."
       }),
       narrate: async () => {
         throw new Error("timeout");
@@ -45,6 +49,7 @@ describe("system error channel", () => {
 
   it("passes through judge call failure detail", async () => {
     const out = await runTurn({
+      rawInputText: "look",
       judge: async () => {
         throw new Error("ServiceUnavailable request_id=abc123");
       },
@@ -60,6 +65,7 @@ describe("system error channel", () => {
   it("tolerates extra state_patch on reject and continues", async () => {
     let narrateCalls = 0;
     const out = await runTurn({
+      rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
         reason_code: "MISSING_PREREQ",

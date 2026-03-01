@@ -3,7 +3,10 @@ import { applyReplCommand, shouldExit } from "../../src/cli/repl-session";
 
 describe("repl session helpers", () => {
   it("resets state on /reset", () => {
-    const next = applyReplCommand("/reset", { hp: 9, narration_history: ["x"] });
+    const next = applyReplCommand("/reset", {
+      hp: 9,
+      approved_interaction_history: [{ raw_input_text: "look", narration_text: "x" }]
+    });
     expect(next).toEqual({});
   });
 
