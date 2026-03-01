@@ -11,18 +11,41 @@ export type TurnResult = {
   reference: string;
   state: Record<string, unknown>;
   system_error_code?: string;
+  system_error_detail?: string;
 };
 
 function systemFallback(
   state: Record<string, unknown>,
-  systemErrorCode: string
+  systemErrorCode: string,
+  systemErrorDetail?: string
 ): TurnResult {
   return {
     narration_text: "System busy, please try again.",
     reference: "Try again with a different action in a moment.",
     state,
-    system_error_code: systemErrorCode
+    system_error_code: systemErrorCode,
+    system_error_detail: systemErrorDetail
   };
+}
+
+function extractErrorDetail(error: unknown): string | undefined {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown provider error object";
+    }
+  }
+
+  return undefined;
 }
 
 function readNarrationHistory(state: Record<string, unknown>): string[] {
@@ -76,7 +99,11 @@ export async function runTurn(deps: {
         return systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID);
       }
 
-      return systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED);
+      return systemFallback(
+        deps.state,
+        SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED,
+        extractErrorDetail(error)
+      );
     }
   }
 
@@ -105,6 +132,10 @@ export async function runTurn(deps: {
       return systemFallback(deps.state, SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID);
     }
 
-    return systemFallback(deps.state, SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED);
+    return systemFallback(
+      deps.state,
+      SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,
+      extractErrorDetail(error)
+    );
   }
 }

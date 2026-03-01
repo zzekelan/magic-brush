@@ -37,7 +37,22 @@ describe("system error channel", () => {
     });
 
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
+    expect(out.system_error_detail).toContain("timeout");
     expect(out.narration_text).toMatch(/please try again/i);
     expect(out.state).toEqual(original);
+  });
+
+  it("passes through judge call failure detail", async () => {
+    const out = await runTurn({
+      judge: async () => {
+        throw new Error("ServiceUnavailable request_id=abc123");
+      },
+      narrate: async () => ({ narration_text: "unused", reference: "unused" }),
+      state: {}
+    });
+
+    expect(out.system_error_code).toBe("JUDGE_CALL_FAILED");
+    expect(out.system_error_detail).toContain("ServiceUnavailable");
+    expect(out.system_error_detail).toContain("abc123");
   });
 });
