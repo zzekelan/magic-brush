@@ -16,12 +16,12 @@ describe("createJudgeAgent", () => {
     const agent = createJudgeAgent(provider as never);
     await agent.run({
       raw_input_text: "look",
-      state_snapshot: {},
-      narration_history: []
+      state_snapshot: {}
     });
 
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.messages[0].content).toContain("ref_from_judge");
+    expect(call.messages[0].content).not.toContain("narration_history");
     expect(call.messages[0].content).not.toContain("state_patch");
     expect(call.messages[0].content).toContain("json object");
     expect(call.messages[0].content).toContain("RULE_CONFLICT");
