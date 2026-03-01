@@ -15,7 +15,8 @@ const JUDGE_SYSTEM_PROMPT = [
   "- internal_reason: private diagnostic reason.",
   "- confidence: number in [0, 1].",
   "- ref_from_judge: one concrete player-facing guidance sentence.",
-  "- state_patch: required object when verdict=approve; forbidden when verdict=reject."
+  "- state_patch: when verdict=approve, MUST be a JSON object and must never be null. Use {} if no state change.",
+  "- state_patch: when verdict=reject, omit this key entirely."
 ].join("\n");
 
 export function createJudgeAgent(provider: LlmProvider) {

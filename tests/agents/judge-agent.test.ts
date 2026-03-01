@@ -28,5 +28,7 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("MISSING_PREREQ");
     expect(call.messages[0].content).toContain("OUT_OF_SCOPE_ACTION");
     expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
+    expect(call.messages[0].content).toContain("must never be null");
+    expect(call.messages[0].content).toContain("omit this key entirely");
   });
 });
