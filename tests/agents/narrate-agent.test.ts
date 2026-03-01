@@ -29,7 +29,12 @@ describe("createNarrateAgent", () => {
     expect(call.messages[0].content).toContain("completed");
     expect(call.messages[0].content).toContain("role_profile");
     expect(call.messages[0].content).toContain("world_background");
-    expect(call.messages[0].content).toContain("Follow the same language as the player's raw_input_text.");
+    expect(call.messages[0].content).toContain("in-world next-step hint in second person");
+    expect(call.messages[0].content).toContain(
+      "Keep both narration_text and reference immersive and in-world."
+    );
+    expect(call.messages[0].content).toContain("Avoid out-of-world meta wording.");
+    expect(call.messages[0].content).toContain("Follow the same language as raw_input_text.");
     expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
     expect(call.messages[0].content).toContain(
       "Do not treat rejected entries as world facts."

@@ -3,23 +3,25 @@ import type { JudgeContext } from "../context/build-judge-context";
 import type { LlmProvider } from "../providers/types";
 
 const JUDGE_SYSTEM_PROMPT = [
-  "You are the judge for game actions.",
+  "You evaluate whether an in-world action can proceed.",
   "You must output a single json object that matches the provided schema exactly.",
   "Input fields:",
-  "- raw_input_text: player's current command.",
+  "- raw_input_text: current action statement.",
   "- state_snapshot: current world state before this turn.",
   "- state_snapshot.onboarding (optional): onboarding state when REPL setup is in progress/completed.",
   "  - completed: whether onboarding finished.",
   "  - step: current onboarding step, role_profile or world_background.",
-  "  - role_profile: player's declared role text.",
-  "  - world_background: player's declared world background text.",
+  "  - role_profile: declared role text.",
+  "  - world_background: declared world background text.",
   "Output fields:",
   "- verdict: approve or reject.",
   "- reason_code: must be exactly one of RULE_CONFLICT, MISSING_PREREQ, OUT_OF_SCOPE_ACTION, SAFETY_BLOCKED.",
   "- internal_reason: private diagnostic reason.",
   "- confidence: number in [0, 1].",
-  "- ref_from_judge: one concrete player-facing guidance sentence.",
-  "Follow the same language as the player's raw_input_text.",
+  "- ref_from_judge: one concrete in-world guidance sentence in second person.",
+  "Use immersive in-world language only.",
+  "Avoid out-of-world meta wording.",
+  "Follow the same language as raw_input_text.",
   "Do not include any keys outside the schema."
 ].join("\n");
 

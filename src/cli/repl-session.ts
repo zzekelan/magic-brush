@@ -52,14 +52,23 @@ export function isOnboardingComplete(state: Record<string, unknown>): boolean {
 export function getOnboardingPrompt(state: Record<string, unknown>): string {
   const onboarding = readOnboarding(state);
   if (onboarding?.completed === true) {
-    return "角色与世界背景已设定，可开始行动。";
+    return [
+      "Onboarding complete. You can start taking actions.",
+      "角色与世界背景已设定，可开始行动。"
+    ].join("\n");
   }
 
   if (onboarding?.step === "world_background") {
-    return "请先定义你的世界背景。";
+    return [
+      "Please define your world background first.",
+      "请先定义你的世界背景。"
+    ].join("\n");
   }
 
-  return "请先定义你的角色。";
+  return [
+    "Please define your role first.",
+    "请先定义你的角色。"
+  ].join("\n");
 }
 
 export function applyOnboardingInput(

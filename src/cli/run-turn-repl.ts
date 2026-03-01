@@ -34,7 +34,7 @@ async function main() {
   try {
     for (;;) {
       if (!isOnboardingComplete(state)) {
-        console.log(`引导: ${getOnboardingPrompt(state)}`);
+        console.log(getOnboardingPrompt(state));
       }
 
       const rawInput = await rl.question("> ");

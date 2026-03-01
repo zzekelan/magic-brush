@@ -28,7 +28,11 @@ describe("onboarding helpers", () => {
   });
 
   it("starts by asking role profile prompt", () => {
-    expect(getOnboardingPrompt({})).toMatch(/角色/i);
+    const prompt = getOnboardingPrompt({});
+    const lines = prompt.split("\n");
+
+    expect(lines[0]).toMatch(/Please define your role/i);
+    expect(lines[1]).toMatch(/请先定义你的角色/i);
   });
 
   it("moves from role profile step to world background step", () => {

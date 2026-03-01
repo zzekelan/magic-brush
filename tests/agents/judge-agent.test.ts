@@ -33,7 +33,10 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("completed");
     expect(call.messages[0].content).toContain("role_profile");
     expect(call.messages[0].content).toContain("world_background");
-    expect(call.messages[0].content).toContain("Follow the same language as the player's raw_input_text.");
+    expect(call.messages[0].content).toContain("in-world guidance sentence in second person");
+    expect(call.messages[0].content).toContain("Use immersive in-world language only.");
+    expect(call.messages[0].content).toContain("Avoid out-of-world meta wording.");
+    expect(call.messages[0].content).toContain("Follow the same language as raw_input_text.");
     expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
   });
 });
