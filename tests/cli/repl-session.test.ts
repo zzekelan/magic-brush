@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyOnboardingInput,
   applyReplCommand,
+  formatReplOutput,
   getOnboardingPrompt,
   isOnboardingComplete,
   shouldExit
@@ -58,5 +59,49 @@ describe("onboarding helpers", () => {
     });
     expect(isOnboardingComplete(step2.state)).toBe(true);
     expect(step2.message).toMatch(/开始行动/i);
+  });
+});
+
+describe("formatReplOutput", () => {
+  it("prints narration and reference text only when debug is false", () => {
+    const out = formatReplOutput(
+      {
+        narration_text: "你看向街口。",
+        reference: "向东侧巷道走近一些。",
+        state: { hp: 10 }
+      },
+      false
+    );
+
+    expect(out).toBe("你看向街口。\n向东侧巷道走近一些。");
+  });
+
+  it("prints error line when system_error_code exists in non-debug mode", () => {
+    const out = formatReplOutput(
+      {
+        narration_text: "系统繁忙，请稍后再试。",
+        reference: "稍等片刻再行动。",
+        system_error_code: "NARRATE_CALL_FAILED"
+      },
+      false
+    );
+
+    expect(out).toContain("系统繁忙，请稍后再试。");
+    expect(out).toContain("稍等片刻再行动。");
+    expect(out).toContain("Error: NARRATE_CALL_FAILED");
+  });
+
+  it("keeps full json output when debug is true", () => {
+    const out = formatReplOutput(
+      {
+        narration_text: "ok",
+        reference: "go",
+        state: { hp: 10 }
+      },
+      true
+    );
+
+    expect(out).toContain("\"narration_text\": \"ok\"");
+    expect(out).toContain("\"state\"");
   });
 });

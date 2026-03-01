@@ -11,6 +11,7 @@ import { parseReplArgs } from "./parse-cli-args";
 import {
   applyOnboardingInput,
   applyReplCommand,
+  formatReplOutput,
   getOnboardingPrompt,
   isOnboardingComplete,
   shouldExit
@@ -51,14 +52,13 @@ async function main() {
       if (nextStateFromCommand !== state) {
         state = nextStateFromCommand;
         console.log(
-          JSON.stringify(
+          formatReplOutput(
             {
               narration_text: "Session state reset.",
               reference: "Enter your next action.",
               state
             },
-            null,
-            2
+            debug
           )
         );
         continue;
@@ -68,14 +68,13 @@ async function main() {
         const onboarding = applyOnboardingInput(text, state);
         state = onboarding.state;
         console.log(
-          JSON.stringify(
+          formatReplOutput(
             {
               narration_text: onboarding.message,
               reference: getOnboardingPrompt(state),
               state
             },
-            null,
-            2
+            debug
           )
         );
         continue;
@@ -88,7 +87,7 @@ async function main() {
         judgeAgent,
         narrateAgent
       });
-      console.log(JSON.stringify(out, null, 2));
+      console.log(formatReplOutput(out, debug));
       state = out.state;
     }
   } finally {

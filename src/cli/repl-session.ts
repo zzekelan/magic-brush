@@ -2,6 +2,14 @@ export function shouldExit(input: string): boolean {
   return input.trim() === "/exit";
 }
 
+type ReplOutput = {
+  narration_text: string;
+  reference: string;
+  system_error_code?: string;
+  system_error_detail?: string;
+  [key: string]: unknown;
+};
+
 type OnboardingStep = "role_profile" | "world_background";
 
 type OnboardingState = {
@@ -116,4 +124,22 @@ export function applyReplCommand(
   }
 
   return state;
+}
+
+export function formatReplOutput(output: ReplOutput, debug: boolean): string {
+  if (debug) {
+    return JSON.stringify(output, null, 2);
+  }
+
+  const lines = [output.narration_text, output.reference];
+
+  if (output.system_error_code) {
+    const detail =
+      typeof output.system_error_detail === "string" && output.system_error_detail.length > 0
+        ? ` (${output.system_error_detail})`
+        : "";
+    lines.push(`Error: ${output.system_error_code}${detail}`);
+  }
+
+  return lines.join("\n");
 }
