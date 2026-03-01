@@ -14,6 +14,7 @@ const JUDGE_SYSTEM_PROMPT = [
   "- internal_reason: private diagnostic reason.",
   "- confidence: number in [0, 1].",
   "- ref_from_judge: one concrete player-facing guidance sentence.",
+  "Follow the same language as the player's raw_input_text.",
   "Do not include any keys outside the schema."
 ].join("\n");
 

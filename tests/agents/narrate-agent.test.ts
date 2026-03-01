@@ -24,6 +24,7 @@ describe("createNarrateAgent", () => {
     expect(call.messages[0].content).toContain("json object");
     expect(call.messages[0].content).toContain("raw_input_text");
     expect(call.messages[0].content).toContain("state_snapshot");
+    expect(call.messages[0].content).toContain("Follow the same language as the player's raw_input_text.");
     expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
     expect(call.messages[0].content).toContain(
       "Do not output policy-review wording"
