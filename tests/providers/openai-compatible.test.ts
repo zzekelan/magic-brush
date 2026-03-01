@@ -30,4 +30,28 @@ describe("OpenAICompatibleProvider", () => {
       })
     );
   });
+
+  it("fails fast when completion call exceeds timeout", async () => {
+    const create = vi.fn().mockImplementation(
+      () =>
+        new Promise(() => {
+          // never resolves
+        })
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      model: "test-model",
+      createCompletion: create,
+      requestTimeoutMs: 10
+    });
+
+    await expect(
+      provider.generateStructured({
+        task: "narrate",
+        schemaName: "NarrateOutput",
+        schema: z.object({ narration_text: z.string() }),
+        messages: [{ role: "user", content: "test" }]
+      })
+    ).rejects.toThrow(/timed out/i);
+  });
 });

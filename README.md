@@ -28,6 +28,7 @@ Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
    - `LLM_BASE_URL`
    - `LLM_API_KEY`
    - `LLM_MODEL`
+   - `LLM_TIMEOUT_MS` (optional, default `30000`)
 3. Run:
 
 ```bash
@@ -55,4 +56,20 @@ The REPL keeps state in memory within the same process (`state = out.state` afte
 
 ```bash
 bun run test
+```
+
+## Troubleshooting No Output
+
+If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:
+
+```bash
+LLM_TIMEOUT_MS=8000 bun run turn -- "look around"
+```
+
+```bash
+set -a; source .env; set +a
+curl -sS --max-time 10 "$LLM_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $LLM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"model\":\"$LLM_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
 ```

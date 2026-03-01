@@ -14,7 +14,8 @@ async function main() {
   const provider = OpenAICompatibleProvider.fromConfig({
     baseUrl: config.baseUrl,
     apiKey: config.apiKey,
-    model: config.model
+    model: config.model,
+    timeoutMs: config.timeoutMs
   });
 
   const judgeAgent = createJudgeAgent(provider);
