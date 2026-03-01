@@ -67,11 +67,14 @@ async function main() {
       if (!isOnboardingComplete(state)) {
         const onboarding = applyOnboardingInput(text, state);
         state = onboarding.state;
+        const onboardingReference = isOnboardingComplete(state)
+          ? getOnboardingPrompt(state)
+          : "";
         console.log(
           formatReplOutput(
             {
               narration_text: onboarding.message,
-              reference: getOnboardingPrompt(state),
+              reference: onboardingReference,
               state
             },
             debug

@@ -76,6 +76,18 @@ describe("formatReplOutput", () => {
     expect(out).toBe("你看向街口。\n向东侧巷道走近一些。");
   });
 
+  it("does not print an empty reference line in non-debug mode", () => {
+    const out = formatReplOutput(
+      {
+        narration_text: "请继续定义你的世界背景。",
+        reference: ""
+      },
+      false
+    );
+
+    expect(out).toBe("请继续定义你的世界背景。");
+  });
+
   it("prints error line when system_error_code exists in non-debug mode", () => {
     const out = formatReplOutput(
       {

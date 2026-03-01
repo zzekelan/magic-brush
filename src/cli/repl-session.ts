@@ -131,7 +131,9 @@ export function formatReplOutput(output: ReplOutput, debug: boolean): string {
     return JSON.stringify(output, null, 2);
   }
 
-  const lines = [output.narration_text, output.reference];
+  const lines = [output.narration_text, output.reference].filter(
+    (line) => typeof line === "string" && line.length > 0
+  );
 
   if (output.system_error_code) {
     const detail =
