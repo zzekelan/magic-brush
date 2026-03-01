@@ -8,6 +8,22 @@ Each turn runs in this order:
 
 Judge runs first. Narrate is the only user-facing output stage.
 
+Judge and Narrate each retry up to 3 times on transient failures before system fallback.
+
+## Context Contract
+
+- `JudgeContext` gets:
+  - `raw_input_text`
+  - `state_snapshot`
+- `NarrateContext` gets:
+  - `raw_input_text`
+  - `verdict`
+  - `reason_code`
+  - `ref_from_judge`
+  - `state_snapshot`
+
+Narrate does not receive `internal_reason`.
+
 ## Error Domains
 
 - `reason_code`: business/gameplay outcomes only (for example `MISSING_PREREQ`).
@@ -35,7 +51,15 @@ Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
 bun run turn -- "look around"
 ```
 
-Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`.
+Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`/`system_error_detail`.
+
+Use `--debug` to include runtime diagnostics:
+
+```bash
+bun run turn -- --debug "look around"
+```
+
+With `--debug`, response adds `debug` containing attempts, context snapshots, and detailed error diagnostics.
 
 ## REPL Mode (In-Process Memory)
 
@@ -45,12 +69,29 @@ Run:
 bun run turn:repl
 ```
 
+Or enable debug diagnostics for each turn:
+
+```bash
+bun run turn:repl -- --debug
+```
+
 Commands:
 
 - `/reset` clears in-memory state.
 - `/exit` exits the REPL.
 
 The REPL keeps state in memory within the same process (`state = out.state` after each turn), so gameplay can continue across prompts in one session.
+
+State history is runtime-owned under `state.approved_interaction_history` and records only approved+successful turns as:
+
+```json
+{
+  "raw_input_text": "open gate",
+  "narration_text": "The gate opens with a groan."
+}
+```
+
+History keeps the latest 50 approved interactions.
 
 ## Run Tests
 
