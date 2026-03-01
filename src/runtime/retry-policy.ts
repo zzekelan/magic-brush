@@ -17,7 +17,7 @@ export function shouldRetryJudge(input: {
   return input.confidence < CONFIDENCE_THRESHOLD;
 }
 
-export function shouldRetryNarrate(input: { schemaValid: boolean; attempt: number }): boolean {
+export function shouldRetryNarrate(input: { attempt: number }): boolean {
   if (input.attempt >= MAX_RETRY) {
     return false;
   }

@@ -13,7 +13,8 @@ const JUDGE_SYSTEM_PROMPT = [
   "- reason_code: must be exactly one of RULE_CONFLICT, MISSING_PREREQ, OUT_OF_SCOPE_ACTION, SAFETY_BLOCKED.",
   "- internal_reason: private diagnostic reason.",
   "- confidence: number in [0, 1].",
-  "- ref_from_judge: one concrete player-facing guidance sentence."
+  "- ref_from_judge: one concrete player-facing guidance sentence.",
+  "Do not include any keys outside the schema."
 ].join("\n");
 
 export function createJudgeAgent(provider: LlmProvider) {

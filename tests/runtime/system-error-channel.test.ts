@@ -18,7 +18,7 @@ describe("system error channel", () => {
 
     expect(out.narration_text).toMatch(/please try again/i);
     expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
-    expect(out.system_error_detail).toContain("reference");
+    expect(out.system_error_detail).toBeUndefined();
     expect(out.debug).toBeUndefined();
   });
 
@@ -43,7 +43,7 @@ describe("system error channel", () => {
     });
 
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
-    expect(out.system_error_detail).toContain("timeout");
+    expect(out.system_error_detail).toBeUndefined();
     expect(out.narration_text).toMatch(/please try again/i);
     expect(out.state).toEqual(original);
   });
@@ -59,22 +59,25 @@ describe("system error channel", () => {
     });
 
     expect(out.system_error_code).toBe("JUDGE_CALL_FAILED");
-    expect(out.system_error_detail).toContain("ServiceUnavailable");
-    expect(out.system_error_detail).toContain("abc123");
+    expect(out.system_error_detail).toBeUndefined();
   });
 
-  it("tolerates extra state_patch on reject and continues", async () => {
+  it("rejects extra state_patch on reject in strict mode", async () => {
+    let judgeCalls = 0;
     let narrateCalls = 0;
     const out = await runTurn({
       rawInputText: "open gate",
-      judge: async () => ({
-        verdict: "reject",
-        reason_code: "MISSING_PREREQ",
-        internal_reason: "missing key",
-        confidence: 0.9,
-        ref_from_judge: "Find the key first.",
-        state_patch: { hp: 0 }
-      }),
+      judge: async () => {
+        judgeCalls += 1;
+        return {
+          verdict: "reject",
+          reason_code: "MISSING_PREREQ",
+          internal_reason: "missing key",
+          confidence: 0.9,
+          ref_from_judge: "Find the key first.",
+          state_patch: { hp: 0 }
+        };
+      },
       narrate: async () => {
         narrateCalls += 1;
         return {
@@ -85,8 +88,10 @@ describe("system error channel", () => {
       state: { hp: 10 }
     });
 
-    expect(narrateCalls).toBe(1);
-    expect(out.system_error_code).toBeUndefined();
+    expect(judgeCalls).toBe(4);
+    expect(narrateCalls).toBe(0);
+    expect(out.system_error_code).toBe("JUDGE_SCHEMA_INVALID");
+    expect(out.system_error_detail).toBeUndefined();
     expect(out.state).toEqual({ hp: 10 });
   });
 });

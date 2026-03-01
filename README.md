@@ -51,7 +51,7 @@ Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
 bun run turn -- "look around"
 ```
 
-Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`/`system_error_detail`.
+Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`.
 
 Use `--debug` to include runtime diagnostics:
 
@@ -59,7 +59,7 @@ Use `--debug` to include runtime diagnostics:
 bun run turn -- --debug "look around"
 ```
 
-With `--debug`, response adds `debug` containing attempts, context snapshots, and detailed error diagnostics.
+With `--debug`, response adds `debug` containing attempts, context snapshots, and detailed error diagnostics (including `system_error_detail`).
 
 ## REPL Mode (In-Process Memory)
 

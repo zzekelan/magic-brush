@@ -13,10 +13,10 @@ describe("shouldRetryJudge", () => {
 
 describe("shouldRetryNarrate", () => {
   it("retries before max attempts", () => {
-    expect(shouldRetryNarrate({ schemaValid: false, attempt: 0 })).toBe(true);
+    expect(shouldRetryNarrate({ attempt: 0 })).toBe(true);
   });
 
   it("does not retry after max attempts", () => {
-    expect(shouldRetryNarrate({ schemaValid: false, attempt: 3 })).toBe(false);
+    expect(shouldRetryNarrate({ attempt: 3 })).toBe(false);
   });
 });

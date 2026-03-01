@@ -14,6 +14,7 @@ const NARRATE_SYSTEM_PROMPT = [
   "Output fields:",
   "- narration_text: immersive in-world narration for this turn.",
   "- reference: concise player guidance sentence.",
+  "Do not include any keys outside the schema.",
   "Do not output policy-review wording such as approved, blocked, or safety review."
 ].join("\n");
 

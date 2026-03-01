@@ -52,15 +52,13 @@ export type TurnResult = {
 
 function systemFallback(
   state: Record<string, unknown>,
-  systemErrorCode: string,
-  systemErrorDetail?: string
+  systemErrorCode: string
 ): TurnResult {
   return {
     narration_text: "System busy, please try again.",
     reference: "Try again with a different action in a moment.",
     state,
-    system_error_code: systemErrorCode,
-    system_error_detail: systemErrorDetail
+    system_error_code: systemErrorCode
   };
 }
 
@@ -131,23 +129,6 @@ function buildStateSnapshot(state: Record<string, unknown>): DebugStateSnapshot 
   };
 }
 
-function sanitizeJudgeCandidate(raw: unknown): unknown {
-  if (!isRecord(raw)) {
-    return raw;
-  }
-
-  if (raw.verdict !== "reject") {
-    return raw;
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(raw, "state_patch")) {
-    return raw;
-  }
-
-  const { state_patch: _ignored, ...rest } = raw;
-  return rest;
-}
-
 export async function runTurn(deps: {
   rawInputText: string;
   debug?: boolean;
@@ -195,9 +176,7 @@ export async function runTurn(deps: {
   while (judgeResult === null) {
     try {
       judgeAttempts += 1;
-      const candidate = JudgeOutputSchema.parse(
-        sanitizeJudgeCandidate(await deps.judge())
-      );
+      const candidate = JudgeOutputSchema.parse(await deps.judge());
       const needRetry = shouldRetryJudge({
         confidence: candidate.confidence,
         schemaValid: true,
@@ -243,8 +222,7 @@ export async function runTurn(deps: {
         return withDebug(
           systemFallback(
             deps.state,
-            SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID,
-            detail
+            SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID
           ),
           {
             stage: "judge",
@@ -256,11 +234,10 @@ export async function runTurn(deps: {
 
       const detail = extractErrorDetail(error);
       return withDebug(
-        systemFallback(
-          deps.state,
-          SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED,
-          detail
-        ),
+          systemFallback(
+            deps.state,
+            SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED
+          ),
         {
           stage: "judge",
           system_error_code: SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED,
@@ -303,7 +280,6 @@ export async function runTurn(deps: {
       });
     } catch (error) {
       const needRetry = shouldRetryNarrate({
-        schemaValid: !(error instanceof ZodError),
         attempt: narrateAttempt
       });
 
@@ -317,8 +293,7 @@ export async function runTurn(deps: {
         return withDebug(
           systemFallback(
             deps.state,
-            SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID,
-            detail
+            SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID
           ),
           {
             stage: "narrate",
@@ -330,11 +305,10 @@ export async function runTurn(deps: {
 
       const detail = extractErrorDetail(error);
       return withDebug(
-        systemFallback(
-          deps.state,
-          SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,
-          detail
-        ),
+          systemFallback(
+            deps.state,
+            SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED
+          ),
         {
           stage: "narrate",
           system_error_code: SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED,

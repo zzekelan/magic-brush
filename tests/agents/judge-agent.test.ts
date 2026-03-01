@@ -29,5 +29,6 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("OUT_OF_SCOPE_ACTION");
     expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
     expect(call.messages[0].content).toContain("number in [0, 1]");
+    expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
   });
 });

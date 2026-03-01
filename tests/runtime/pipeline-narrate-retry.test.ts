@@ -78,6 +78,6 @@ describe("runTurn narrate retry", () => {
 
     expect(narrateCalls).toBe(4);
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
-    expect(out.system_error_detail).toContain("timeout");
+    expect(out.system_error_detail).toBeUndefined();
   });
 });

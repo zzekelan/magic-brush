@@ -41,6 +41,7 @@ describe("runTurn debug channel", () => {
     });
 
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
+    expect(out.system_error_detail).toBeUndefined();
     expect(out.debug).toEqual(
       expect.objectContaining({
         attempts: { judge: 1, narrate: 4 },
