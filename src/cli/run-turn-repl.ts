@@ -8,7 +8,13 @@ import { loadLlmConfig } from "../config/llm";
 import { OpenAICompatibleProvider } from "../providers/openai-compatible";
 import { runLiveTurn } from "../runtime/run-live-turn";
 import { parseReplArgs } from "./parse-cli-args";
-import { applyReplCommand, shouldExit } from "./repl-session";
+import {
+  applyOnboardingInput,
+  applyReplCommand,
+  getOnboardingPrompt,
+  isOnboardingComplete,
+  shouldExit
+} from "./repl-session";
 
 async function main() {
   const { debug } = parseReplArgs(process.argv.slice(2));
@@ -45,6 +51,23 @@ async function main() {
             {
               narration_text: "Session state reset.",
               reference: "Enter your next action.",
+              state
+            },
+            null,
+            2
+          )
+        );
+        continue;
+      }
+
+      if (!isOnboardingComplete(state)) {
+        const onboarding = applyOnboardingInput(text, state);
+        state = onboarding.state;
+        console.log(
+          JSON.stringify(
+            {
+              narration_text: onboarding.message,
+              reference: getOnboardingPrompt(state),
               state
             },
             null,
