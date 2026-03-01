@@ -19,6 +19,7 @@ describe("system error channel", () => {
     expect(out.narration_text).toMatch(/please try again/i);
     expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
     expect(out.system_error_detail).toContain("reference");
+    expect(out.debug).toBeUndefined();
   });
 
   it("does not mutate state when narrate fails", async () => {

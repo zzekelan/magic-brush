@@ -7,9 +7,11 @@ import { createNarrateAgent } from "../agents/narrate-agent";
 import { loadLlmConfig } from "../config/llm";
 import { OpenAICompatibleProvider } from "../providers/openai-compatible";
 import { runLiveTurn } from "../runtime/run-live-turn";
+import { parseReplArgs } from "./parse-cli-args";
 import { applyReplCommand, shouldExit } from "./repl-session";
 
 async function main() {
+  const { debug } = parseReplArgs(process.argv.slice(2));
   const config = loadLlmConfig();
   const provider = OpenAICompatibleProvider.fromConfig({
     baseUrl: config.baseUrl,
@@ -54,6 +56,7 @@ async function main() {
 
       const out = await runLiveTurn({
         rawInputText: text,
+        debug,
         state,
         judgeAgent,
         narrateAgent

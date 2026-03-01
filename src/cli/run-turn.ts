@@ -5,18 +5,10 @@ import { createNarrateAgent } from "../agents/narrate-agent";
 import { loadLlmConfig } from "../config/llm";
 import { OpenAICompatibleProvider } from "../providers/openai-compatible";
 import { runLiveTurn } from "../runtime/run-live-turn";
-
-export function parseTurnInput(argv: string[]): string {
-  const text = argv[0]?.trim();
-  if (!text) {
-    throw new Error('Missing player input. Usage: bun run turn -- "look around"');
-  }
-
-  return text;
-}
+import { parseTurnArgs } from "./parse-cli-args";
 
 async function main() {
-  const rawInputText = parseTurnInput(process.argv.slice(2));
+  const { rawInputText, debug } = parseTurnArgs(process.argv.slice(2));
   const config = loadLlmConfig();
   const provider = OpenAICompatibleProvider.fromConfig({
     baseUrl: config.baseUrl,
@@ -29,6 +21,7 @@ async function main() {
 
   const out = await runLiveTurn({
     rawInputText,
+    debug,
     state: {},
     judgeAgent,
     narrateAgent
