@@ -23,5 +23,6 @@ describe("createJudgeAgent", () => {
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.messages[0].content).toContain("ref_from_judge");
     expect(call.messages[0].content).toContain("state_patch");
+    expect(call.messages[0].content).toContain("json object");
   });
 });

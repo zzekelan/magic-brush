@@ -4,6 +4,7 @@ import type { LlmProvider } from "../providers/types";
 
 const NARRATE_SYSTEM_PROMPT = [
   "You narrate outcomes for players in a game-world voice.",
+  "You must output a single json object that matches the provided schema exactly.",
   "Input fields:",
   "- verdict: approve or reject.",
   "- reason_code: gameplay reason enum.",

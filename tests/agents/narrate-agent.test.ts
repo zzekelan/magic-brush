@@ -20,6 +20,7 @@ describe("createNarrateAgent", () => {
 
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.messages[0].content).toContain("reference");
+    expect(call.messages[0].content).toContain("json object");
     expect(call.messages[0].content).toContain(
       "Do not output policy-review wording"
     );

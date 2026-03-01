@@ -4,6 +4,7 @@ import type { LlmProvider } from "../providers/types";
 
 const JUDGE_SYSTEM_PROMPT = [
   "You are the judge for game actions.",
+  "You must output a single json object that matches the provided schema exactly.",
   "Input fields:",
   "- raw_input_text: player's current command.",
   "- state_snapshot: current world state before this turn.",
