@@ -10,6 +10,16 @@ type ReplOutput = {
   [key: string]: unknown;
 };
 
+export type ReplRender =
+  | {
+      kind: "onboarding_prompt" | "onboarding_ack" | "system_ack";
+      text: string;
+    }
+  | {
+      kind: "turn_result";
+      output: ReplOutput;
+    };
+
 type OnboardingStep = "role_profile" | "world_background";
 
 type OnboardingState = {
@@ -59,13 +69,6 @@ export function isOnboardingComplete(state: Record<string, unknown>): boolean {
 
 export function getOnboardingPrompt(state: Record<string, unknown>): string {
   const onboarding = readOnboarding(state);
-  if (onboarding?.completed === true) {
-    return [
-      "Onboarding complete. You can start taking actions.",
-      "角色与世界背景已设定，可开始行动。"
-    ].join("\n");
-  }
-
   if (onboarding?.step === "world_background") {
     return [
       "Please define your world background first.",
@@ -89,7 +92,10 @@ export function applyOnboardingInput(
   if (current?.completed === true) {
     return {
       state,
-      message: "角色与世界背景已设定，可开始行动。"
+      message: [
+        "Setup already complete. You can start taking actions.",
+        "设定已完成，你可以开始行动。"
+      ].join("\n")
     };
   }
 
@@ -101,7 +107,10 @@ export function applyOnboardingInput(
         role_profile: current.role_profile,
         world_background: text
       }),
-      message: "设定完成，你可以开始行动。"
+      message: [
+        "World background recorded. Setup complete, you can start taking actions.",
+        "已记录世界背景。设定完成，你可以开始行动。"
+      ].join("\n")
     };
   }
 
@@ -111,7 +120,7 @@ export function applyOnboardingInput(
       step: "world_background",
       role_profile: text
     }),
-    message: "请继续定义你的世界背景。"
+    message: ["Role profile recorded.", "已记录角色设定。"].join("\n")
   };
 }
 
@@ -126,11 +135,20 @@ export function applyReplCommand(
   return state;
 }
 
-export function formatReplOutput(output: ReplOutput, debug: boolean): string {
+export function formatReplRender(render: ReplRender, debug: boolean): string {
   if (debug) {
-    return JSON.stringify(output, null, 2);
+    return JSON.stringify(render, null, 2);
   }
 
+  if (
+    render.kind === "onboarding_prompt" ||
+    render.kind === "onboarding_ack" ||
+    render.kind === "system_ack"
+  ) {
+    return render.text;
+  }
+
+  const output = render.output;
   const lines = [output.narration_text, output.reference].filter(
     (line) => typeof line === "string" && line.length > 0
   );

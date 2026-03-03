@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyOnboardingInput,
   applyReplCommand,
-  formatReplOutput,
+  formatReplRender,
   getOnboardingPrompt,
   isOnboardingComplete,
   shouldExit
@@ -44,7 +44,9 @@ describe("onboarding helpers", () => {
       step: "world_background",
       role_profile: "我是游侠"
     });
-    expect(next.message).toMatch(/世界背景/i);
+    const lines = next.message.split("\n");
+    expect(lines[0]).toMatch(/Role profile recorded/i);
+    expect(lines[1]).toMatch(/已记录角色设定/i);
   });
 
   it("stores required onboarding fields after completion", () => {
@@ -58,17 +60,41 @@ describe("onboarding helpers", () => {
       world_background: "蒸汽朋克废土"
     });
     expect(isOnboardingComplete(step2.state)).toBe(true);
-    expect(step2.message).toMatch(/开始行动/i);
+    const lines = step2.message.split("\n");
+    expect(lines[0]).toMatch(/World background recorded/i);
+    expect(lines[1]).toMatch(/已记录世界背景/);
+    expect(lines[1]).toMatch(/开始行动/i);
+  });
+
+  it("does not mutate onboarding when setup is already complete", () => {
+    const state = {
+      onboarding: {
+        completed: true,
+        step: "world_background",
+        role_profile: "我是游侠",
+        world_background: "蒸汽朋克废土"
+      }
+    };
+
+    const next = applyOnboardingInput("新的内容", state);
+    expect(next.state).toBe(state);
+    expect(next.state.onboarding).toEqual(state.onboarding);
+    const lines = next.message.split("\n");
+    expect(lines[0]).toMatch(/Setup already complete/i);
+    expect(lines[1]).toMatch(/设定已完成/);
   });
 });
 
-describe("formatReplOutput", () => {
-  it("prints narration and reference text only when debug is false", () => {
-    const out = formatReplOutput(
+describe("formatReplRender", () => {
+  it("prints narration and reference text for turn_result when debug is false", () => {
+    const out = formatReplRender(
       {
-        narration_text: "你看向街口。",
-        reference: "向东侧巷道走近一些。",
-        state: { hp: 10 }
+        kind: "turn_result",
+        output: {
+          narration_text: "你看向街口。",
+          reference: "向东侧巷道走近一些。",
+          state: { hp: 10 }
+        }
       },
       false
     );
@@ -76,24 +102,39 @@ describe("formatReplOutput", () => {
     expect(out).toBe("你看向街口。\n向东侧巷道走近一些。");
   });
 
-  it("does not print an empty reference line in non-debug mode", () => {
-    const out = formatReplOutput(
+  it("renders onboarding text without reference structure", () => {
+    const out = formatReplRender(
       {
-        narration_text: "请继续定义你的世界背景。",
-        reference: ""
+        kind: "onboarding_ack",
+        text: "Role profile recorded.\n已记录角色设定。"
       },
       false
     );
 
-    expect(out).toBe("请继续定义你的世界背景。");
+    expect(out).toBe("Role profile recorded.\n已记录角色设定。");
   });
 
-  it("prints error line when system_error_code exists in non-debug mode", () => {
-    const out = formatReplOutput(
+  it("renders system ack text without reference structure", () => {
+    const out = formatReplRender(
       {
-        narration_text: "系统繁忙，请稍后再试。",
-        reference: "稍等片刻再行动。",
-        system_error_code: "NARRATE_CALL_FAILED"
+        kind: "system_ack",
+        text: "Session state reset.\n会话已重置。"
+      },
+      false
+    );
+
+    expect(out).toBe("Session state reset.\n会话已重置。");
+  });
+
+  it("prints error line when system_error_code exists in turn_result non-debug mode", () => {
+    const out = formatReplRender(
+      {
+        kind: "turn_result",
+        output: {
+          narration_text: "系统繁忙，请稍后再试。",
+          reference: "稍等片刻再行动。",
+          system_error_code: "NARRATE_CALL_FAILED"
+        }
       },
       false
     );
@@ -103,16 +144,20 @@ describe("formatReplOutput", () => {
     expect(out).toContain("Error: NARRATE_CALL_FAILED");
   });
 
-  it("keeps full json output when debug is true", () => {
-    const out = formatReplOutput(
+  it("keeps full kind payload json output when debug is true", () => {
+    const out = formatReplRender(
       {
-        narration_text: "ok",
-        reference: "go",
-        state: { hp: 10 }
+        kind: "turn_result",
+        output: {
+          narration_text: "ok",
+          reference: "go",
+          state: { hp: 10 }
+        }
       },
       true
     );
 
+    expect(out).toContain("\"kind\": \"turn_result\"");
     expect(out).toContain("\"narration_text\": \"ok\"");
     expect(out).toContain("\"state\"");
   });

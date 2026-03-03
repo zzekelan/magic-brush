@@ -11,11 +11,91 @@ import { parseReplArgs } from "./parse-cli-args";
 import {
   applyOnboardingInput,
   applyReplCommand,
-  formatReplOutput,
+  formatReplRender,
   getOnboardingPrompt,
   isOnboardingComplete,
   shouldExit
 } from "./repl-session";
+
+type ReplTurnOutput = {
+  narration_text: string;
+  reference: string;
+  state: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+export async function runReplSession(input: {
+  debug: boolean;
+  ask: (prompt: string) => Promise<string>;
+  print: (line: string) => void;
+  runTurn: (args: {
+    rawInputText: string;
+    debug: boolean;
+    state: Record<string, unknown>;
+  }) => Promise<ReplTurnOutput>;
+}) {
+  const { debug } = input;
+  let state: Record<string, unknown> = {};
+
+  for (;;) {
+    if (!isOnboardingComplete(state)) {
+      input.print(
+        formatReplRender(
+          { kind: "onboarding_prompt", text: getOnboardingPrompt(state) },
+          debug
+        )
+      );
+    }
+
+    const rawInput = await input.ask("> ");
+    const text = rawInput.trim();
+    if (!text) {
+      continue;
+    }
+
+    if (shouldExit(text)) {
+      break;
+    }
+
+    const nextStateFromCommand = applyReplCommand(text, state);
+    if (nextStateFromCommand !== state) {
+      state = nextStateFromCommand;
+      input.print(
+        formatReplRender(
+          {
+            kind: "system_ack",
+            text: "Session state reset.\n会话已重置。"
+          },
+          debug
+        )
+      );
+      continue;
+    }
+
+    if (!isOnboardingComplete(state)) {
+      const onboarding = applyOnboardingInput(text, state);
+      state = onboarding.state;
+      input.print(
+        formatReplRender(
+          {
+            kind: "onboarding_ack",
+            text: onboarding.message
+          },
+          debug
+        )
+      );
+      continue;
+    }
+
+    const out = await input.runTurn({
+      rawInputText: text,
+      debug,
+      state
+    });
+    input.print(formatReplRender({ kind: "turn_result", output: out }, debug));
+    state = out.state;
+  }
+}
 
 async function main() {
   const { debug } = parseReplArgs(process.argv.slice(2));
@@ -30,69 +110,21 @@ async function main() {
   const judgeAgent = createJudgeAgent(provider);
   const narrateAgent = createNarrateAgent(provider);
   const rl = createInterface({ input, output });
-  let state: Record<string, unknown> = {};
 
   try {
-    for (;;) {
-      if (!isOnboardingComplete(state)) {
-        console.log(getOnboardingPrompt(state));
-      }
-
-      const rawInput = await rl.question("> ");
-      const text = rawInput.trim();
-      if (!text) {
-        continue;
-      }
-
-      if (shouldExit(text)) {
-        break;
-      }
-
-      const nextStateFromCommand = applyReplCommand(text, state);
-      if (nextStateFromCommand !== state) {
-        state = nextStateFromCommand;
-        console.log(
-          formatReplOutput(
-            {
-              narration_text: "Session state reset.",
-              reference: "Enter your next action.",
-              state
-            },
-            debug
-          )
-        );
-        continue;
-      }
-
-      if (!isOnboardingComplete(state)) {
-        const onboarding = applyOnboardingInput(text, state);
-        state = onboarding.state;
-        const onboardingReference = isOnboardingComplete(state)
-          ? getOnboardingPrompt(state)
-          : "";
-        console.log(
-          formatReplOutput(
-            {
-              narration_text: onboarding.message,
-              reference: onboardingReference,
-              state
-            },
-            debug
-          )
-        );
-        continue;
-      }
-
-      const out = await runLiveTurn({
-        rawInputText: text,
-        debug,
-        state,
-        judgeAgent,
-        narrateAgent
-      });
-      console.log(formatReplOutput(out, debug));
-      state = out.state;
-    }
+    await runReplSession({
+      debug,
+      ask: (prompt) => rl.question(prompt),
+      print: (line) => console.log(line),
+      runTurn: ({ rawInputText, debug: turnDebug, state }) =>
+        runLiveTurn({
+          rawInputText,
+          debug: turnDebug,
+          state,
+          judgeAgent,
+          narrateAgent
+        })
+    });
   } finally {
     rl.close();
   }
