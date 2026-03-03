@@ -112,6 +112,28 @@ Runtime also stores short dialogue continuity memory under `state.conversation_c
 bun run test
 ```
 
+Run all monorepo tests (runtime + api + frontend):
+
+```bash
+bun run test:all
+```
+
+## Run Monorepo Apps (Split Dev Servers)
+
+Start API server (`apps/api`, default `http://localhost:8787`):
+
+```bash
+bun run dev:api
+```
+
+Start frontend (`apps/frontend`, default `http://localhost:5173`):
+
+```bash
+bun run dev:frontend
+```
+
+Frontend reads API base URL from `apps/frontend/.env.example` (`VITE_API_BASE_URL`).
+
 ## Troubleshooting No Output
 
 If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:
