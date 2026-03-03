@@ -4,14 +4,13 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { parseReplArgs } from "./parse-cli-args";
 import {
-  applyOnboardingInput,
-  applyReplCommand,
   formatReplRender,
   getOnboardingPrompt,
-  isOnboardingComplete,
-  shouldExit
+  isOnboardingComplete
 } from "./repl-session";
 import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
+import { renderBilingualMessage } from "../interaction/messages";
+import { stepInteraction } from "../interaction/step-engine";
 
 type ReplTurnOutput = {
   narration_text: string;
@@ -49,47 +48,35 @@ export async function runReplSession(input: {
       continue;
     }
 
-    if (shouldExit(text)) {
+    const step = await stepInteraction({
+      rawInputText: text,
+      debug,
+      state,
+      runTurn: input.runTurn
+    });
+
+    if (step.kind === "exit") {
       break;
     }
 
-    const nextStateFromCommand = applyReplCommand(text, state);
-    if (nextStateFromCommand !== state) {
-      state = nextStateFromCommand;
+    state = step.nextState;
+
+    if (step.kind === "turn_result") {
       input.print(
-        formatReplRender(
-          {
-            kind: "system_ack",
-            text: "Session state reset.\n会话已重置。"
-          },
-          debug
-        )
+        formatReplRender({ kind: "turn_result", output: step.output }, debug)
       );
       continue;
     }
 
-    if (!isOnboardingComplete(state)) {
-      const onboarding = applyOnboardingInput(text, state);
-      state = onboarding.state;
-      input.print(
-        formatReplRender(
-          {
-            kind: "onboarding_ack",
-            text: onboarding.message
-          },
-          debug
-        )
-      );
-      continue;
-    }
-
-    const out = await input.runTurn({
-      rawInputText: text,
-      debug,
-      state
-    });
-    input.print(formatReplRender({ kind: "turn_result", output: out }, debug));
-    state = out.state;
+    input.print(
+      formatReplRender(
+        {
+          kind: step.kind,
+          text: renderBilingualMessage(step.message)
+        },
+        debug
+      )
+    );
   }
 }
 

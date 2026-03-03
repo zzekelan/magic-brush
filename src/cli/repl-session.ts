@@ -1,3 +1,6 @@
+import { INTERACTION_MESSAGES, renderBilingualMessage } from "../interaction/messages";
+import type { LocalizedText, OnboardingStep } from "../interaction/types";
+
 export function shouldExit(input: string): boolean {
   return input.trim() === "/exit";
 }
@@ -19,8 +22,6 @@ export type ReplRender =
       kind: "turn_result";
       output: ReplOutput;
     };
-
-type OnboardingStep = "role_profile" | "world_background";
 
 type OnboardingState = {
   completed: boolean;
@@ -67,19 +68,20 @@ export function isOnboardingComplete(state: Record<string, unknown>): boolean {
   return readOnboarding(state)?.completed === true;
 }
 
-export function getOnboardingPrompt(state: Record<string, unknown>): string {
-  const onboarding = readOnboarding(state);
-  if (onboarding?.step === "world_background") {
-    return [
-      "Please define your world background first.",
-      "请先定义你的世界背景。"
-    ].join("\n");
+export function getOnboardingStep(state: Record<string, unknown>): OnboardingStep {
+  return readOnboarding(state)?.step === "world_background" ? "world_background" : "role_profile";
+}
+
+export function getOnboardingPromptMessage(state: Record<string, unknown>): LocalizedText {
+  if (getOnboardingStep(state) === "world_background") {
+    return INTERACTION_MESSAGES.onboarding_prompt_world_background;
   }
 
-  return [
-    "Please define your role first.",
-    "请先定义你的角色。"
-  ].join("\n");
+  return INTERACTION_MESSAGES.onboarding_prompt_role;
+}
+
+export function getOnboardingPrompt(state: Record<string, unknown>): string {
+  return renderBilingualMessage(getOnboardingPromptMessage(state));
 }
 
 export function applyOnboardingInput(
@@ -92,10 +94,7 @@ export function applyOnboardingInput(
   if (current?.completed === true) {
     return {
       state,
-      message: [
-        "Setup already complete. You can start taking actions.",
-        "设定已完成，你可以开始行动。"
-      ].join("\n")
+      message: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_setup_already_complete)
     };
   }
 
@@ -107,10 +106,7 @@ export function applyOnboardingInput(
         role_profile: current.role_profile,
         world_background: text
       }),
-      message: [
-        "World background recorded. Setup complete, you can start taking actions.",
-        "已记录世界背景。设定完成，你可以开始行动。"
-      ].join("\n")
+      message: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_world_recorded_complete)
     };
   }
 
@@ -120,7 +116,7 @@ export function applyOnboardingInput(
       step: "world_background",
       role_profile: text
     }),
-    message: ["Role profile recorded.", "已记录角色设定。"].join("\n")
+    message: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_role_recorded)
   };
 }
 
