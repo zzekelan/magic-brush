@@ -134,6 +134,20 @@ bun run dev:frontend
 
 Frontend reads API base URL from `apps/frontend/.env.example` (`VITE_API_BASE_URL`).
 
+Frontend session flow now calls `POST /api/session/step` (not raw `/api/turn`) so command and onboarding behavior stays aligned with CLI semantics:
+
+- Commands: `/reset`, `/exit`
+- Onboarding gate: `role_profile -> world_background -> normal turn`
+- State handoff: always send back `next_state` from previous response
+
+`POST /api/turn` remains available as a low-level turn endpoint.
+
+Frontend debug policy:
+
+- Explore mode always sends `debug=false`
+- Developer mode always sends `debug=true`
+- Debug JSON is rendered only in the developer panel, never mixed into narration text
+
 ## Troubleshooting No Output
 
 If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:

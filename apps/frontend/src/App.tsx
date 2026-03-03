@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, FastForward, Terminal, BookOpen, AlertCircle, Info } from 'lucide-react';
-import { createApiClient } from './lib/api-client';
+import { createApiClient, type LocalizedMessage } from './lib/api-client';
 
 // --- Types & Contracts ---
 type Language = 'en' | 'zh';
 type ReasonCode = 'RULE_CONFLICT' | 'MISSING_PREREQ' | 'OUT_OF_SCOPE_ACTION' | 'SAFETY_BLOCKED';
 type SystemErrorCode = 'JUDGE_SCHEMA_INVALID' | 'JUDGE_LOW_CONFIDENCE' | 'JUDGE_CALL_FAILED' | 'NARRATE_SCHEMA_INVALID' | 'NARRATE_CALL_FAILED';
 
-interface TurnState {
+interface TurnState extends Record<string, unknown> {
   approved_interaction_history: any[];
   conversation_context: any[];
   world_state?: any;
@@ -35,10 +35,39 @@ function toTurnState(state: Record<string, unknown>): TurnState {
   const world = state.world_state;
 
   return {
+    ...state,
     approved_interaction_history: approved,
     conversation_context: conversation,
     world_state: world
   };
+}
+
+function readOnboarding(state: Record<string, unknown>) {
+  const raw = state.onboarding;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+
+  const data = raw as Record<string, unknown>;
+  const completed = data.completed === true;
+  const step = data.step === 'world_background' ? 'world_background' : 'role_profile';
+  return { completed, step } as const;
+}
+
+function isOnboardingComplete(state: Record<string, unknown>) {
+  return readOnboarding(state)?.completed === true;
+}
+
+function getOnboardingPromptByLang(state: Record<string, unknown>, lang: Language): string {
+  const onboarding = readOnboarding(state);
+  if (onboarding?.step === 'world_background') {
+    return DICT[lang].prompt_world_background;
+  }
+  return DICT[lang].prompt_role;
+}
+
+function pickLocalizedMessage(message: LocalizedMessage, lang: Language): string {
+  return lang === 'zh' ? message.zh : message.en;
 }
 
 // --- Dictionary ---
@@ -48,7 +77,8 @@ const DICT = {
     developer: 'Developer Mode',
     welcome_explore: 'Welcome to Magic Brush.',
     welcome_dev: 'Welcome to Magic Brush Runtime.',
-    prompt_role: 'Please enter your character setting (e.g., a wandering swordsman)',
+    prompt_role: 'Please define your role first.',
+    prompt_world_background: 'Please define your world background first.',
     judging: 'Judging...',
     system_error: 'System Error',
     action_rejected: 'Action Rejected',
@@ -68,7 +98,8 @@ const DICT = {
     developer: '开发者模式',
     welcome_explore: '欢迎来到 Magic Brush。',
     welcome_dev: '欢迎来到 Magic Brush Runtime。',
-    prompt_role: '请输入你的角色设定（例如：一名流浪的剑客）',
+    prompt_role: '请先定义你的角色。',
+    prompt_world_background: '请先定义你的世界背景。',
     judging: '判定中...',
     system_error: '系统异常',
     action_rejected: '行动被拒',
@@ -92,8 +123,7 @@ const CONFIG = {
     pausePunctuation: 400, // ms pause at punctuation
     blinkRate: 530,
     enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  },
-  debugMode: false
+  }
 };
 
 // --- Hooks ---
@@ -308,8 +338,8 @@ export default function App() {
   const [currentTurn, setCurrentTurn] = useState<TurnResponse | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [debugMode, setDebugMode] = useState(CONFIG.debugMode);
-  
+  const debugEnabled = mode === 'developer';
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleTypingComplete = useCallback(() => {
@@ -321,10 +351,11 @@ export default function App() {
   const handleStart = (selectedMode: 'explore' | 'developer') => {
     setMode(selectedMode);
     setAppState('playing');
+    const initialState = toTurnState({});
     setCurrentTurn({
       narration_text: selectedMode === 'explore' ? DICT[lang].welcome_explore : DICT[lang].welcome_dev,
-      reference: DICT[lang].prompt_role,
-      state: { approved_interaction_history: [], conversation_context: [] }
+      reference: getOnboardingPromptByLang(initialState, lang),
+      state: initialState
     });
   };
 
@@ -337,31 +368,50 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.turn({
+      const response = await apiClient.sessionStep({
         raw_input_text: input,
         state_snapshot: currentTurn?.state ?? {},
-        debug: debugMode
+        debug: debugEnabled
       });
 
       if (currentTurn) {
         setHistory(prev => [...prev, { ...currentTurn, user_input: input }]);
       }
 
-      setCurrentTurn({
-        narration_text: response.narration_text,
-        reference: response.reference,
-        state: toTurnState(response.state),
-        reason_code: response.reason_code as ReasonCode | undefined,
-        system_error_code: response.system_error_code as SystemErrorCode | undefined,
-        debug: response.debug
-      });
+      if (response.kind === 'exit') {
+        setAppState('intro');
+        setHistory([]);
+        setCurrentTurn(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const nextState = toTurnState(response.next_state);
+      if (response.kind === 'turn_result') {
+        setCurrentTurn({
+          narration_text: response.turn.narration_text,
+          reference: response.turn.reference,
+          state: nextState,
+          reason_code: response.turn.reason_code as ReasonCode | undefined,
+          system_error_code: response.turn.system_error_code as SystemErrorCode | undefined,
+          debug: response.debug
+        });
+      } else {
+        const message = pickLocalizedMessage(response.message, lang);
+        const nextPrompt = isOnboardingComplete(nextState) ? '' : getOnboardingPromptByLang(nextState, lang);
+        setCurrentTurn({
+          narration_text: message,
+          reference: nextPrompt,
+          state: nextState
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setCurrentTurn({
         narration_text: '',
         reference: lang === 'en' ? `Request failed: ${message}` : `请求失败：${message}`,
         state:
-          currentTurn?.state ?? { approved_interaction_history: [], conversation_context: [] },
+          currentTurn?.state ?? toTurnState({}),
         system_error_code: 'JUDGE_CALL_FAILED'
       });
     }
@@ -470,13 +520,12 @@ export default function App() {
                 <BookOpen size={12} />
                 {DICT[lang].state_memory}
               </h2>
-              <button 
-                onClick={() => setDebugMode(!debugMode)}
-                className={`p-1.5 rounded transition-colors ${debugMode ? 'bg-ink text-paper' : 'text-ink-light hover:bg-border'}`}
-                title="Toggle Debug Mode"
+              <div
+                className="p-1.5 rounded bg-ink text-paper"
+                title="Developer mode debug=true"
               >
                 <Terminal size={12} />
-              </button>
+              </div>
             </div>
 
             {currentTurn?.state && (
@@ -509,7 +558,7 @@ export default function App() {
           </div>
 
           {/* Debug Drawer */}
-          {debugMode && currentTurn?.debug && (
+          {debugEnabled && currentTurn?.debug && (
             <div className="p-6 border-t border-border bg-white/40 animate-fade-in">
               <h2 className="font-semibold tracking-widest uppercase text-[10px] text-ink-light mb-4 flex items-center gap-2">
                 <Terminal size={12} />
