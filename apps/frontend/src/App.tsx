@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, FastForward, Terminal, BookOpen, AlertCircle, Info } from 'lucide-react';
+import { createApiClient } from './lib/api-client';
 
 // --- Types & Contracts ---
 type Language = 'en' | 'zh';
@@ -20,6 +21,24 @@ interface TurnResponse {
   system_error_code?: SystemErrorCode;
   debug?: any;
   user_input?: string;
+}
+
+const apiClient = createApiClient();
+
+function toTurnState(state: Record<string, unknown>): TurnState {
+  const approved = Array.isArray(state.approved_interaction_history)
+    ? state.approved_interaction_history
+    : [];
+  const conversation = Array.isArray(state.conversation_context)
+    ? state.conversation_context
+    : [];
+  const world = state.world_state;
+
+  return {
+    approved_interaction_history: approved,
+    conversation_context: conversation,
+    world_state: world
+  };
 }
 
 // --- Dictionary ---
@@ -76,103 +95,6 @@ const CONFIG = {
   },
   debugMode: false
 };
-
-// --- Mock Runner ---
-class MockRunner {
-  private step: 'role_profile' | 'world_background' | 'playing' = 'role_profile';
-  private state: TurnState = {
-    approved_interaction_history: [],
-    conversation_context: [],
-    world_state: { time: '初始', location: '虚无' }
-  };
-
-  async submit(input: string, lang: Language): Promise<TurnResponse> {
-    await new Promise(r => setTimeout(r, 600)); // Network delay simulation
-
-    let narration_text = '';
-    let reference = '';
-    let reason_code: ReasonCode | undefined;
-    let system_error_code: SystemErrorCode | undefined;
-    let isApproved = true;
-
-    if (this.step === 'role_profile') {
-      this.step = 'world_background';
-      narration_text = lang === 'en' 
-        ? `You have incarnated as "${input}". The gears of fate begin to turn.`
-        : `你已化身为「${input}」。命运的齿轮开始转动。`;
-      reference = lang === 'en' ? 'Please describe the background of your world...' : '请描述你所在的世界背景...';
-      this.state.world_state.role = input;
-    } else if (this.step === 'world_background') {
-      this.step = 'playing';
-      narration_text = lang === 'en'
-        ? `The world "${input}" has been constructed. The mist gradually dissipates, and you stand on an unknown land.`
-        : `世界「${input}」已构建完毕。迷雾渐渐散去，你站在一片未知的土地上。`;
-      reference = lang === 'en' ? 'What do you want to do now?' : '你现在想做什么？';
-      this.state.world_state.background = input;
-      this.state.world_state.location = lang === 'en' ? 'Edge of the Misty Forest' : '迷雾森林边缘';
-    } else {
-      // Playing logic mock
-      if (input.includes('飞') || input.toLowerCase().includes('fly')) {
-        isApproved = false;
-        reason_code = 'MISSING_PREREQ';
-        narration_text = lang === 'en' 
-          ? 'You try to spread your wings and fly, but your mortal body pulls you heavily back to the ground.' 
-          : '你试图展翅高飞，但凡人的躯体沉重地将你拉回地面。';
-        reference = lang === 'en' ? 'Perhaps you need to find another way?' : '或许你需要寻找其他方法？';
-      } else if (input.includes('杀') || input.includes('死') || input.toLowerCase().includes('kill') || input.toLowerCase().includes('die')) {
-        isApproved = false;
-        reason_code = 'SAFETY_BLOCKED';
-        narration_text = lang === 'en' 
-          ? 'An invisible force prevents your violent act.' 
-          : '一股无形的力量阻止了你的暴行。';
-        reference = lang === 'en' ? 'Please try peaceful means.' : '请尝试和平的手段。';
-      } else if (input.includes('系统崩溃') || input.toLowerCase().includes('crash')) {
-        isApproved = false;
-        system_error_code = 'JUDGE_CALL_FAILED';
-        narration_text = '';
-        reference = lang === 'en' ? 'System exception, please try again.' : '系统异常，请重试。';
-      } else {
-        narration_text = lang === 'en'
-          ? `You decide to ${input}. The surrounding air seems to ripple subtly because of your action, and the leaves in the distance rustle.`
-          : `你决定${input}。周围的空气似乎因为你的行动而产生了微妙的涟漪，远处的树叶沙沙作响。`;
-        reference = lang === 'en' ? "What's next?" : '接下来呢？';
-        this.state.world_state.lastAction = input;
-      }
-    }
-
-    const turnRecord = { input, narration_text, reason_code, system_error_code };
-
-    // Update conversation context (max 2)
-    this.state.conversation_context.push(turnRecord);
-    if (this.state.conversation_context.length > 2) {
-      this.state.conversation_context.shift();
-    }
-
-    // Update approved history (max 50)
-    if (isApproved) {
-      this.state.approved_interaction_history.push(turnRecord);
-      if (this.state.approved_interaction_history.length > 50) {
-        this.state.approved_interaction_history.shift();
-      }
-    }
-
-    return {
-      narration_text,
-      reference,
-      state: JSON.parse(JSON.stringify(this.state)),
-      reason_code,
-      system_error_code,
-      debug: {
-        attempts: 1,
-        timestamp: new Date().toISOString(),
-        error: system_error_code ? 'Mock system error triggered' : null,
-        context_snapshots: JSON.parse(JSON.stringify(this.state))
-      }
-    };
-  }
-}
-
-const runner = new MockRunner();
 
 // --- Hooks ---
 function useTypewriter(text: string, config: typeof CONFIG.typewriter) {
@@ -414,13 +336,36 @@ export default function App() {
     setInputValue('');
     setIsLoading(true);
 
-    const response = await runner.submit(input, lang);
-    
-    if (currentTurn) {
-      setHistory(prev => [...prev, { ...currentTurn, user_input: input }]);
+    try {
+      const response = await apiClient.turn({
+        raw_input_text: input,
+        state_snapshot: currentTurn?.state ?? {},
+        debug: debugMode
+      });
+
+      if (currentTurn) {
+        setHistory(prev => [...prev, { ...currentTurn, user_input: input }]);
+      }
+
+      setCurrentTurn({
+        narration_text: response.narration_text,
+        reference: response.reference,
+        state: toTurnState(response.state),
+        reason_code: response.reason_code as ReasonCode | undefined,
+        system_error_code: response.system_error_code as SystemErrorCode | undefined,
+        debug: response.debug
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCurrentTurn({
+        narration_text: '',
+        reference: lang === 'en' ? `Request failed: ${message}` : `请求失败：${message}`,
+        state:
+          currentTurn?.state ?? { approved_interaction_history: [], conversation_context: [] },
+        system_error_code: 'JUDGE_CALL_FAILED'
+      });
     }
-    
-    setCurrentTurn(response);
+
     setIsLoading(false);
   };
 
