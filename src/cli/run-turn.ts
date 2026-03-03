@@ -1,30 +1,16 @@
 import "dotenv/config";
 import { fileURLToPath } from "node:url";
-import { createJudgeAgent } from "../agents/judge-agent";
-import { createNarrateAgent } from "../agents/narrate-agent";
-import { loadLlmConfig } from "../config/llm";
-import { OpenAICompatibleProvider } from "../providers/openai-compatible";
-import { runLiveTurn } from "../runtime/run-live-turn";
 import { parseTurnArgs } from "./parse-cli-args";
+import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
 
 async function main() {
   const { rawInputText, debug } = parseTurnArgs(process.argv.slice(2));
-  const config = loadLlmConfig();
-  const provider = OpenAICompatibleProvider.fromConfig({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
-    timeoutMs: config.timeoutMs
-  });
-  const judgeAgent = createJudgeAgent(provider);
-  const narrateAgent = createNarrateAgent(provider);
+  const runTurn = createLiveTurnExecutor();
 
-  const out = await runLiveTurn({
+  const out = await runTurn({
     rawInputText,
     debug,
-    state: {},
-    judgeAgent,
-    narrateAgent
+    state: {}
   });
 
   console.log(JSON.stringify(out, null, 2));

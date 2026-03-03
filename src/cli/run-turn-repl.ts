@@ -2,11 +2,6 @@ import "dotenv/config";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { createJudgeAgent } from "../agents/judge-agent";
-import { createNarrateAgent } from "../agents/narrate-agent";
-import { loadLlmConfig } from "../config/llm";
-import { OpenAICompatibleProvider } from "../providers/openai-compatible";
-import { runLiveTurn } from "../runtime/run-live-turn";
 import { parseReplArgs } from "./parse-cli-args";
 import {
   applyOnboardingInput,
@@ -16,6 +11,7 @@ import {
   isOnboardingComplete,
   shouldExit
 } from "./repl-session";
+import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
 
 type ReplTurnOutput = {
   narration_text: string;
@@ -99,16 +95,7 @@ export async function runReplSession(input: {
 
 async function main() {
   const { debug } = parseReplArgs(process.argv.slice(2));
-  const config = loadLlmConfig();
-  const provider = OpenAICompatibleProvider.fromConfig({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
-    timeoutMs: config.timeoutMs
-  });
-
-  const judgeAgent = createJudgeAgent(provider);
-  const narrateAgent = createNarrateAgent(provider);
+  const runTurnExecutor = createLiveTurnExecutor();
   const rl = createInterface({ input, output });
 
   try {
@@ -117,12 +104,10 @@ async function main() {
       ask: (prompt) => rl.question(prompt),
       print: (line) => console.log(line),
       runTurn: ({ rawInputText, debug: turnDebug, state }) =>
-        runLiveTurn({
+        runTurnExecutor({
           rawInputText,
           debug: turnDebug,
-          state,
-          judgeAgent,
-          narrateAgent
+          state
         })
     });
   } finally {
