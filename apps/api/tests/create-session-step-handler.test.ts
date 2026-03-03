@@ -59,6 +59,45 @@ describe("createSessionStepHandler", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
+  it("returns noop and keeps state for whitespace input", async () => {
+    const runTurn = vi.fn();
+    const handler = createSessionStepHandler({
+      runTurn,
+      allowedOrigins: ["http://localhost:5173"]
+    });
+
+    const req = new Request("http://localhost:8787/api/session/step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        raw_input_text: "   ",
+        state_snapshot: {
+          onboarding: {
+            completed: false,
+            step: "world_background",
+            role_profile: "小王"
+          }
+        }
+      })
+    });
+
+    const res = await handler(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({
+      kind: "noop",
+      next_state: {
+        onboarding: {
+          completed: false,
+          step: "world_background",
+          role_profile: "小王"
+        }
+      }
+    });
+    expect(runTurn).not.toHaveBeenCalled();
+  });
+
   it("maps turn result to normalized turn payload", async () => {
     const runTurn = vi.fn().mockResolvedValue({
       narration_text: "你站在城市中心。",

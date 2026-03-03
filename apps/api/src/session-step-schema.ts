@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const SessionStepRequestSchema = z.object({
-  raw_input_text: z.string().trim().min(1),
+  raw_input_text: z.string().trim(),
   state_snapshot: z.record(z.unknown()).optional().default({}),
   debug: z.boolean().optional().default(false)
 });

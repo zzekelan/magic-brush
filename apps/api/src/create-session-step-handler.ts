@@ -77,6 +77,16 @@ export function createSessionStepHandler(input: {
 
     try {
       const payload = SessionStepRequestSchema.parse(await request.json());
+      if (payload.raw_input_text === "") {
+        return json(
+          {
+            kind: "noop",
+            next_state: payload.state_snapshot
+          },
+          200,
+          corsOrigin
+        );
+      }
       const result = await stepInteraction({
         rawInputText: payload.raw_input_text,
         state: payload.state_snapshot,
