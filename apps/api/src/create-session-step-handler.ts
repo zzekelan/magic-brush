@@ -1,9 +1,11 @@
 import { ZodError } from "zod";
+import {
+  SessionStepRequestSchema,
+  SessionStepResponseSchema
+} from "../../../src/interaction/session-step-contract";
 import { toReplRender } from "../../../src/interaction/repl-render";
 import { stepInteraction } from "../../../src/interaction/step-engine";
 import type { InteractionStepResult } from "../../../src/interaction/types";
-import { SessionStepResponseSchema } from "./session-step-response-schema";
-import { SessionStepRequestSchema } from "./session-step-schema";
 
 function withCorsHeaders(headers: Headers, origin?: string) {
   if (origin) {

@@ -37,4 +37,34 @@ describe("api client", () => {
       expect(out.output.narration_text).toBe("n");
     }
   });
+
+  it("throws when response does not match session-step contract", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          kind: "turn_result",
+          next_state: {},
+          output: {
+            narration_text: 1,
+            reference: "r",
+            state: {}
+          }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8787",
+      fetchImpl: fetchMock as typeof fetch
+    });
+
+    await expect(
+      client.sessionStep({
+        raw_input_text: "look",
+        state_snapshot: {},
+        debug: false
+      })
+    ).rejects.toThrow();
+  });
 });

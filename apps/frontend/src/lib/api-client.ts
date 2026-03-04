@@ -1,36 +1,11 @@
-export type SessionStepRequest = {
-  raw_input_text: string;
-  state_snapshot?: Record<string, unknown>;
-  debug?: boolean;
-};
+import {
+  SessionStepRequestSchema,
+  SessionStepResponseSchema,
+  type SessionStepRequest,
+  type SessionStepResponse
+} from "../../../../src/interaction/session-step-contract";
 
-export type SessionStepResponse =
-  | {
-      kind: "exit";
-      next_state: Record<string, unknown>;
-    }
-  | {
-      kind: "noop";
-      next_state: Record<string, unknown>;
-    }
-  | {
-      kind: "system_ack" | "onboarding_ack";
-      next_state: Record<string, unknown>;
-      text: string;
-    }
-  | {
-      kind: "turn_result";
-      next_state: Record<string, unknown>;
-      output: {
-        narration_text: string;
-        reference: string;
-        state: Record<string, unknown>;
-        reason_code?: string;
-        system_error_code?: string;
-        system_error_detail?: string;
-        debug?: unknown;
-      };
-    };
+export type { SessionStepRequest, SessionStepResponse };
 
 async function parseJsonResponse(res: Response): Promise<unknown> {
   if (!res.ok) {
@@ -50,15 +25,16 @@ export function createApiClient(input?: {
 
   return {
     async sessionStep(payload: SessionStepRequest): Promise<SessionStepResponse> {
+      const request = SessionStepRequestSchema.parse(payload);
       const res = await fetchImpl(`${baseUrl}/api/session/step`, {
         method: "POST",
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(request)
       });
 
-      return (await parseJsonResponse(res)) as SessionStepResponse;
+      return SessionStepResponseSchema.parse(await parseJsonResponse(res));
     }
   };
 }
