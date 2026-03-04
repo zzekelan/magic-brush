@@ -134,13 +134,17 @@ bun run dev:frontend
 
 Frontend reads API base URL from `apps/frontend/.env.example` (`VITE_API_BASE_URL`).
 
-Frontend session flow now calls `POST /api/session/step` (not raw `/api/turn`) so command and onboarding behavior stays aligned with CLI semantics:
+Frontend session flow now calls `POST /api/session/step` (the only API gameplay endpoint) so command and onboarding behavior stays aligned with CLI semantics:
 
 - Commands: `/reset`, `/exit`
 - Onboarding gate: `role_profile -> world_background -> normal turn`
 - State handoff: always send back `next_state` from previous response
 
-`POST /api/turn` remains available as a low-level turn endpoint.
+`/api/session/step` response kinds:
+
+- `noop | exit` -> `{ kind, next_state }`
+- `system_ack | onboarding_ack` -> `{ kind, text, next_state }`
+- `turn_result` -> `{ kind, output, next_state }`
 
 Frontend debug policy:
 

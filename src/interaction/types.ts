@@ -21,10 +21,13 @@ export type TurnLikeOutput = {
   system_error_code?: string;
   system_error_detail?: string;
   debug?: unknown;
-  [key: string]: unknown;
 };
 
 export type InteractionStepResult =
+  | {
+      kind: "noop";
+      nextState: Record<string, unknown>;
+    }
   | {
       kind: "exit";
       nextState: Record<string, unknown>;
@@ -32,17 +35,12 @@ export type InteractionStepResult =
   | {
       kind: "system_ack";
       nextState: Record<string, unknown>;
-      messageKey: "system_ack_session_reset";
-      message: LocalizedText;
+      text: string;
     }
   | {
       kind: "onboarding_ack";
       nextState: Record<string, unknown>;
-      messageKey:
-        | "onboarding_ack_role_recorded"
-        | "onboarding_ack_world_recorded_complete"
-        | "onboarding_ack_setup_already_complete";
-      message: LocalizedText;
+      text: string;
     }
   | {
       kind: "turn_result";

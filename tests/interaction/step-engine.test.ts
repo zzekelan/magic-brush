@@ -1,7 +1,15 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { stepInteraction } from "../../src/interaction/step-engine";
 
 describe("stepInteraction", () => {
+  it("does not import cli layer from interaction core", async () => {
+    const sourcePath = resolve(import.meta.dirname, "../../src/interaction/step-engine.ts");
+    const source = await readFile(sourcePath, "utf8");
+    expect(source).not.toContain("../cli/repl-session");
+  });
+
   it("returns exit and keeps state on /exit", async () => {
     const runTurn = vi.fn();
     const state = {
@@ -26,6 +34,28 @@ describe("stepInteraction", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
+  it("returns noop and keeps state on blank input", async () => {
+    const runTurn = vi.fn();
+    const state = {
+      onboarding: {
+        completed: false,
+        step: "role_profile"
+      }
+    };
+
+    const out = await stepInteraction({
+      rawInputText: "   ",
+      state,
+      runTurn
+    });
+
+    expect(out).toEqual({
+      kind: "noop",
+      nextState: state
+    });
+    expect(runTurn).not.toHaveBeenCalled();
+  });
+
   it("resets state on /reset without calling runTurn", async () => {
     const runTurn = vi.fn();
     const out = await stepInteraction({
@@ -39,11 +69,7 @@ describe("stepInteraction", () => {
 
     expect(out).toEqual({
       kind: "system_ack",
-      messageKey: "system_ack_session_reset",
-      message: {
-        en: "Session state reset.",
-        zh: "会话已重置。"
-      },
+      text: "Session state reset.\n会话已重置。",
       nextState: {}
     });
     expect(runTurn).not.toHaveBeenCalled();
@@ -64,7 +90,9 @@ describe("stepInteraction", () => {
     });
 
     expect(step1.kind).toBe("onboarding_ack");
-    expect(step1.messageKey).toBe("onboarding_ack_role_recorded");
+    if (step1.kind === "onboarding_ack") {
+      expect(step1.text).toBe("Role profile recorded.\n已记录角色设定。");
+    }
     expect(step1.nextState.onboarding).toEqual({
       completed: false,
       step: "world_background",
@@ -72,7 +100,11 @@ describe("stepInteraction", () => {
     });
 
     expect(step2.kind).toBe("onboarding_ack");
-    expect(step2.messageKey).toBe("onboarding_ack_world_recorded_complete");
+    if (step2.kind === "onboarding_ack") {
+      expect(step2.text).toBe(
+        "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。"
+      );
+    }
     expect(step2.nextState.onboarding).toEqual({
       completed: true,
       step: "world_background",

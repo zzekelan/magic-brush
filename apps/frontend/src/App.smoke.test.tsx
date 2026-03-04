@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import App from "./App";
 
 describe("frontend app", () => {
-  it("renders Magic Brush title", async () => {
+  it("uses Magic Brush as document title", async () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Magic Brush/i)).toBeInTheDocument();
+      expect(document.title).toContain("Magic Brush");
     }, { timeout: 5000 });
   });
 });

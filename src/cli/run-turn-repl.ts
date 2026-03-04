@@ -9,7 +9,7 @@ import {
   isOnboardingComplete
 } from "./repl-session";
 import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
-import { renderBilingualMessage } from "../interaction/messages";
+import { toReplRender } from "../interaction/repl-render";
 import { stepInteraction } from "../interaction/step-engine";
 
 type ReplTurnOutput = {
@@ -61,22 +61,14 @@ export async function runReplSession(input: {
 
     state = step.nextState;
 
-    if (step.kind === "turn_result") {
-      input.print(
-        formatReplRender({ kind: "turn_result", output: step.output }, debug)
-      );
+    if (step.kind === "noop") {
       continue;
     }
 
-    input.print(
-      formatReplRender(
-        {
-          kind: step.kind,
-          text: renderBilingualMessage(step.message)
-        },
-        debug
-      )
-    );
+    const render = toReplRender(step);
+    if (render) {
+      input.print(formatReplRender(render, debug));
+    }
   }
 }
 

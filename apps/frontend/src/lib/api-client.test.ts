@@ -8,9 +8,10 @@ describe("api client", () => {
         JSON.stringify({
           kind: "turn_result",
           next_state: { hp: 1 },
-          turn: {
+          output: {
             narration_text: "n",
-            reference: "r"
+            reference: "r",
+            state: { hp: 1 }
           }
         }),
         { status: 200, headers: { "content-type": "application/json" } }
@@ -33,7 +34,7 @@ describe("api client", () => {
     );
     expect(out.kind).toBe("turn_result");
     if (out.kind === "turn_result") {
-      expect(out.turn.narration_text).toBe("n");
+      expect(out.output.narration_text).toBe("n");
     }
   });
 });

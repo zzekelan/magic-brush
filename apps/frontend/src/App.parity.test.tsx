@@ -66,8 +66,7 @@ describe("frontend parity critical paths", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           kind: "onboarding_ack",
-          message_key: "onboarding_ack_role_recorded",
-          message: { en: "Role profile recorded.", zh: "已记录角色设定。" },
+          text: "Role profile recorded.\n已记录角色设定。",
           next_state: {
             onboarding: {
               completed: false,
@@ -80,11 +79,7 @@ describe("frontend parity critical paths", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           kind: "onboarding_ack",
-          message_key: "onboarding_ack_world_recorded_complete",
-          message: {
-            en: "World background recorded. Setup complete, you can start taking actions.",
-            zh: "已记录世界背景。设定完成，你可以开始行动。"
-          },
+          text: "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。",
           next_state: {
             onboarding: {
               completed: true,
@@ -106,12 +101,21 @@ describe("frontend parity critical paths", () => {
               world_background: "Steam city"
             },
             approved_interaction_history: [],
-            conversation_context: [],
-            world_state: { location: "city_center" }
+            conversation_context: []
           },
-          turn: {
+          output: {
             narration_text: "You stand in the city center.",
-            reference: "Observe nearby streets."
+            reference: "Observe nearby streets.",
+            state: {
+              onboarding: {
+                completed: true,
+                step: "world_background",
+                role_profile: "A ranger",
+                world_background: "Steam city"
+              },
+              approved_interaction_history: [],
+              conversation_context: []
+            }
           }
         })
       );
@@ -150,8 +154,7 @@ describe("frontend parity critical paths", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           kind: "system_ack",
-          message_key: "system_ack_session_reset",
-          message: { en: "Session state reset.", zh: "会话已重置。" },
+          text: "Session state reset.\n会话已重置。",
           next_state: {}
         })
       )
@@ -193,8 +196,7 @@ describe("frontend parity critical paths", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           kind: "onboarding_ack",
-          message_key: "onboarding_ack_role_recorded",
-          message: { en: "Role profile recorded.", zh: "已记录角色设定。" },
+          text: "Role profile recorded.\n已记录角色设定。",
           next_state: {
             onboarding: {
               completed: false,
@@ -207,11 +209,7 @@ describe("frontend parity critical paths", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           kind: "onboarding_ack",
-          message_key: "onboarding_ack_world_recorded_complete",
-          message: {
-            en: "World background recorded. Setup complete, you can start taking actions.",
-            zh: "已记录世界背景。设定完成，你可以开始行动。"
-          },
+          text: "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。",
           next_state: {
             onboarding: {
               completed: true,
@@ -233,14 +231,23 @@ describe("frontend parity critical paths", () => {
               world_background: "Neon district"
             },
             approved_interaction_history: [],
-            conversation_context: [],
-            world_state: { location: "neon_district" }
+            conversation_context: []
           },
-          turn: {
+          output: {
             narration_text: "You step into the neon district.",
-            reference: "Inspect the alley."
+            reference: "Inspect the alley.",
+            state: {
+              onboarding: {
+                completed: true,
+                step: "world_background",
+                role_profile: "A mage",
+                world_background: "Neon district"
+              },
+              approved_interaction_history: [],
+              conversation_context: []
+            },
+            debug: { judge_ms: 12 }
           },
-          debug: { judge_ms: 12 }
         })
       );
     vi.stubGlobal("fetch", fetchMock);
@@ -262,7 +269,7 @@ describe("frontend parity critical paths", () => {
     submitInput("look around");
     await waitFor(() => {
       expect(screen.getByText("You step into the neon district.")).toBeInTheDocument();
-      expect(screen.getByText("Debug Info")).toBeInTheDocument();
+      expect(screen.getByText("Debug JSON")).toBeInTheDocument();
       expect(screen.getByText(/"judge_ms": 12/)).toBeInTheDocument();
     });
 
@@ -271,5 +278,6 @@ describe("frontend parity critical paths", () => {
     expect(screen.getByText("You step into the neon district.").textContent).not.toContain(
       "judge_ms"
     );
+    expect(screen.queryByText("World State")).not.toBeInTheDocument();
   });
 });

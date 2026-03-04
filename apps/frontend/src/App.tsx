@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, FastForward, Terminal, BookOpen, AlertCircle, Info } from 'lucide-react';
-import { createApiClient, type LocalizedMessage } from './lib/api-client';
+import { Play, Pause, RotateCcw, FastForward, Terminal, AlertCircle } from 'lucide-react';
+import { createApiClient, type SessionStepResponse } from './lib/api-client';
 
 // --- Types & Contracts ---
 type Language = 'en' | 'zh';
@@ -10,7 +10,6 @@ type SystemErrorCode = 'JUDGE_SCHEMA_INVALID' | 'JUDGE_LOW_CONFIDENCE' | 'JUDGE_
 interface TurnState extends Record<string, unknown> {
   approved_interaction_history: any[];
   conversation_context: any[];
-  world_state?: any;
 }
 
 interface TurnResponse {
@@ -23,6 +22,8 @@ interface TurnResponse {
   user_input?: string;
 }
 
+type DebugReplRender = Extract<SessionStepResponse, { kind: 'system_ack' | 'onboarding_ack' | 'turn_result' }>;
+
 const apiClient = createApiClient();
 
 function toTurnState(state: Record<string, unknown>): TurnState {
@@ -32,13 +33,11 @@ function toTurnState(state: Record<string, unknown>): TurnState {
   const conversation = Array.isArray(state.conversation_context)
     ? state.conversation_context
     : [];
-  const world = state.world_state;
 
   return {
     ...state,
     approved_interaction_history: approved,
-    conversation_context: conversation,
-    world_state: world
+    conversation_context: conversation
   };
 }
 
@@ -66,8 +65,17 @@ function getOnboardingPromptByLang(state: Record<string, unknown>, lang: Languag
   return DICT[lang].prompt_role;
 }
 
-function pickLocalizedMessage(message: LocalizedMessage, lang: Language): string {
-  return lang === 'zh' ? message.zh : message.en;
+function pickLocalizedText(text: string, lang: Language): string {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length < 2) {
+    return text;
+  }
+
+  return lang === 'zh' ? lines[1] : lines[0];
 }
 
 // --- Dictionary ---
@@ -82,14 +90,7 @@ const DICT = {
     judging: 'Judging...',
     system_error: 'System Error',
     action_rejected: 'Action Rejected',
-    state_memory: 'State Memory',
-    world_state: 'World State',
-    conversation_context: 'Conversation Context',
-    approved_history: 'Approved History',
-    debug_info: 'Debug Info',
-    contract_fields: 'Contract Fields',
-    no_records: 'No records',
-    records_count: (c: number) => `${c} valid interactions recorded`,
+    debug_json: 'Debug JSON',
     title_dev: 'Magic Brush Runtime',
     subtitle_dev: 'Rule-based Interactive Narrative Engine',
   },
@@ -103,14 +104,7 @@ const DICT = {
     judging: '判定中...',
     system_error: '系统异常',
     action_rejected: '行动被拒',
-    state_memory: '状态记忆',
-    world_state: '世界状态',
-    conversation_context: '对话上下文',
-    approved_history: '有效互动历史',
-    debug_info: '调试信息',
-    contract_fields: '契约字段',
-    no_records: '暂无记录',
-    records_count: (c: number) => `已记录 ${c} 条有效互动`,
+    debug_json: '调试 JSON',
     title_dev: 'Magic Brush Runtime',
     subtitle_dev: '规则判定驱动的互动叙事引擎',
   }
@@ -336,6 +330,7 @@ export default function App() {
   const [mode, setMode] = useState<'explore' | 'developer'>('explore');
   const [history, setHistory] = useState<TurnResponse[]>([]);
   const [currentTurn, setCurrentTurn] = useState<TurnResponse | null>(null);
+  const [currentReplRender, setCurrentReplRender] = useState<DebugReplRender | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const debugEnabled = mode === 'developer';
@@ -348,6 +343,10 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    document.title = 'Magic Brush';
+  }, []);
+
   const handleStart = (selectedMode: 'explore' | 'developer') => {
     setMode(selectedMode);
     setAppState('playing');
@@ -357,6 +356,7 @@ export default function App() {
       reference: getOnboardingPromptByLang(initialState, lang),
       state: initialState
     });
+    setCurrentReplRender(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -382,6 +382,13 @@ export default function App() {
         setAppState('intro');
         setHistory([]);
         setCurrentTurn(null);
+        setCurrentReplRender(null);
+        setInputValue('');
+        setIsLoading(false);
+        return;
+      }
+
+      if (response.kind === 'noop') {
         setIsLoading(false);
         return;
       }
@@ -389,21 +396,23 @@ export default function App() {
       const nextState = toTurnState(response.next_state);
       if (response.kind === 'turn_result') {
         setCurrentTurn({
-          narration_text: response.turn.narration_text,
-          reference: response.turn.reference,
+          narration_text: response.output.narration_text,
+          reference: response.output.reference,
           state: nextState,
-          reason_code: response.turn.reason_code as ReasonCode | undefined,
-          system_error_code: response.turn.system_error_code as SystemErrorCode | undefined,
-          debug: response.debug
+          reason_code: response.output.reason_code as ReasonCode | undefined,
+          system_error_code: response.output.system_error_code as SystemErrorCode | undefined,
+          debug: response.output.debug
         });
+        setCurrentReplRender(response);
       } else {
-        const message = pickLocalizedMessage(response.message, lang);
+        const message = pickLocalizedText(response.text, lang);
         const nextPrompt = isOnboardingComplete(nextState) ? '' : getOnboardingPromptByLang(nextState, lang);
         setCurrentTurn({
           narration_text: message,
           reference: nextPrompt,
           state: nextState
         });
+        setCurrentReplRender(response);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -414,6 +423,7 @@ export default function App() {
           currentTurn?.state ?? toTurnState({}),
         system_error_code: 'JUDGE_CALL_FAILED'
       });
+      setCurrentReplRender(null);
     }
 
     setIsLoading(false);
@@ -513,76 +523,14 @@ export default function App() {
       {/* Sidebar */}
       {mode === 'developer' && (
         <aside className="w-full md:w-80 border-t md:border-t-0 md:border-l border-border bg-paper/30 h-screen overflow-y-auto flex flex-col font-sans text-sm shrink-0 relative z-10">
-          {/* State Panel */}
           <div className="p-6 flex-1">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="font-semibold tracking-widest uppercase text-[10px] text-ink-light flex items-center gap-2">
-                <BookOpen size={12} />
-                {DICT[lang].state_memory}
-              </h2>
-              <div
-                className="p-1.5 rounded bg-ink text-paper"
-                title="Developer mode debug=true"
-              >
-                <Terminal size={12} />
-              </div>
-            </div>
-
-            {currentTurn?.state && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-[10px] text-ink-faint mb-3 uppercase tracking-widest">{DICT[lang].world_state}</h3>
-                  <pre className="bg-white/40 p-4 rounded-sm text-xs overflow-x-auto border border-border/50 text-ink-light leading-relaxed">
-                    {JSON.stringify(currentTurn.state.world_state, null, 2)}
-                  </pre>
-                </div>
-                <div>
-                  <h3 className="text-[10px] text-ink-faint mb-3 uppercase tracking-widest">{DICT[lang].conversation_context} ({currentTurn.state.conversation_context.length}/2)</h3>
-                  <div className="space-y-2">
-                    {currentTurn.state.conversation_context.map((ctx, i) => (
-                      <div key={i} className="bg-white/40 p-3 rounded-sm text-xs border border-border/50 truncate text-ink-light">
-                        <span className="text-ink-faint mr-2">[{ctx.reason_code || 'OK'}]</span>
-                        {ctx.input}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-[10px] text-ink-faint mb-3 uppercase tracking-widest">{DICT[lang].approved_history} ({currentTurn.state.approved_interaction_history.length}/50)</h3>
-                  <div className="text-xs text-ink-light bg-white/40 p-3 rounded-sm border border-border/50">
-                    {currentTurn.state.approved_interaction_history.length === 0 ? DICT[lang].no_records : DICT[lang].records_count(currentTurn.state.approved_interaction_history.length)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Debug Drawer */}
-          {debugEnabled && currentTurn?.debug && (
-            <div className="p-6 border-t border-border bg-white/40 animate-fade-in">
-              <h2 className="font-semibold tracking-widest uppercase text-[10px] text-ink-light mb-4 flex items-center gap-2">
-                <Terminal size={12} />
-                {DICT[lang].debug_info}
-              </h2>
-              <pre className="text-[10px] overflow-x-auto text-ink-light leading-relaxed">
-                {JSON.stringify(currentTurn.debug, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* Contract Card */}
-          <div className="p-6 border-t border-border bg-ink text-paper">
-            <h2 className="font-semibold tracking-widest uppercase text-[10px] mb-4 flex items-center gap-2 opacity-80">
-              <Info size={12} />
-              {DICT[lang].contract_fields}
+            <h2 className="font-semibold tracking-widest uppercase text-[10px] text-ink-light mb-4 flex items-center gap-2">
+              <Terminal size={12} />
+              {DICT[lang].debug_json}
             </h2>
-            <ul className="text-xs space-y-3 opacity-70 leading-relaxed">
-              <li><span className="font-mono text-white/90">narration_text</span><br/>主叙事文本</li>
-              <li><span className="font-mono text-white/90">reference</span><br/>下一步引导</li>
-              <li><span className="font-mono text-white/90">state</span><br/>状态对象</li>
-              <li><span className="font-mono text-white/90">reason_code</span><br/>拒绝原因</li>
-              <li><span className="font-mono text-white/90">system_error_code</span><br/>系统错误</li>
-            </ul>
+            <pre className="bg-white/40 p-4 rounded-sm text-xs overflow-x-auto border border-border/50 text-ink-light leading-relaxed">
+              {currentReplRender ? JSON.stringify(currentReplRender, null, 2) : ''}
+            </pre>
           </div>
         </aside>
       )}

@@ -4,33 +4,32 @@ export type SessionStepRequest = {
   debug?: boolean;
 };
 
-export type LocalizedMessage = {
-  en: string;
-  zh: string;
-};
-
 export type SessionStepResponse =
   | {
       kind: "exit";
       next_state: Record<string, unknown>;
     }
   | {
+      kind: "noop";
+      next_state: Record<string, unknown>;
+    }
+  | {
       kind: "system_ack" | "onboarding_ack";
       next_state: Record<string, unknown>;
-      message_key: string;
-      message: LocalizedMessage;
+      text: string;
     }
   | {
       kind: "turn_result";
       next_state: Record<string, unknown>;
-      turn: {
+      output: {
         narration_text: string;
         reference: string;
+        state: Record<string, unknown>;
         reason_code?: string;
         system_error_code?: string;
         system_error_detail?: string;
+        debug?: unknown;
       };
-      debug?: unknown;
     };
 
 async function parseJsonResponse(res: Response): Promise<unknown> {

@@ -23,7 +23,7 @@ describe("createSessionStepHandler", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
-  it("returns onboarding_ack before onboarding completion", async () => {
+  it("returns onboarding_ack with text and without message fields", async () => {
     const runTurn = vi.fn();
     const handler = createSessionStepHandler({
       runTurn,
@@ -43,19 +43,19 @@ describe("createSessionStepHandler", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual(
-      expect.objectContaining({
-        kind: "onboarding_ack",
-        message_key: "onboarding_ack_role_recorded",
-        next_state: expect.objectContaining({
-          onboarding: expect.objectContaining({
-            completed: false,
-            step: "world_background",
-            role_profile: "我是游侠"
-          })
-        })
-      })
-    );
+    expect(body).toEqual({
+      kind: "onboarding_ack",
+      text: "Role profile recorded.\n已记录角色设定。",
+      next_state: {
+        onboarding: {
+          completed: false,
+          step: "world_background",
+          role_profile: "我是游侠"
+        }
+      }
+    });
+    expect(body).not.toHaveProperty("message_key");
+    expect(body).not.toHaveProperty("message");
     expect(runTurn).not.toHaveBeenCalled();
   });
 
@@ -98,7 +98,7 @@ describe("createSessionStepHandler", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
-  it("maps turn result to normalized turn payload", async () => {
+  it("maps turn result to repl-aligned output payload", async () => {
     const runTurn = vi.fn().mockResolvedValue({
       narration_text: "你站在城市中心。",
       reference: "观察周围。",
@@ -145,19 +145,17 @@ describe("createSessionStepHandler", () => {
         }
       }
     });
-    expect(body).toEqual(
-      expect.objectContaining({
-        kind: "turn_result",
-        next_state: { hp: 10 },
-        turn: {
-          narration_text: "你站在城市中心。",
-          reference: "观察周围。",
-          reason_code: undefined,
-          system_error_code: undefined,
-          system_error_detail: undefined
-        },
+    expect(body).toEqual({
+      kind: "turn_result",
+      next_state: { hp: 10 },
+      output: {
+        narration_text: "你站在城市中心。",
+        reference: "观察周围。",
+        state: { hp: 10 },
         debug: { judge_ms: 14 }
-      })
-    );
+      }
+    });
+    expect(body).not.toHaveProperty("turn");
+    expect(body).not.toHaveProperty("debug");
   });
 });

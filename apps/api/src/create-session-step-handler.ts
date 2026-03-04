@@ -1,6 +1,8 @@
 import { ZodError } from "zod";
+import { toReplRender } from "../../../src/interaction/repl-render";
 import { stepInteraction } from "../../../src/interaction/step-engine";
 import type { InteractionStepResult } from "../../../src/interaction/types";
+import { SessionStepResponseSchema } from "./session-step-response-schema";
 import { SessionStepRequestSchema } from "./session-step-schema";
 
 function withCorsHeaders(headers: Headers, origin?: string) {
@@ -22,35 +24,32 @@ function noContent(origin?: string): Response {
   return new Response(null, { status: 204, headers });
 }
 
-function toApiPayload(result: InteractionStepResult): Record<string, unknown> {
-  if (result.kind === "exit") {
-    return {
-      kind: "exit",
+function toApiPayload(result: InteractionStepResult) {
+  if (result.kind === "exit" || result.kind === "noop") {
+    return SessionStepResponseSchema.parse({
+      kind: result.kind,
       next_state: result.nextState
-    };
+    });
   }
 
-  if (result.kind === "turn_result") {
-    return {
+  const replRender = toReplRender(result);
+  if (!replRender) {
+    throw new Error("unreachable: non-render step without terminal kind");
+  }
+
+  if (replRender.kind === "turn_result") {
+    return SessionStepResponseSchema.parse({
       kind: "turn_result",
       next_state: result.nextState,
-      turn: {
-        narration_text: result.output.narration_text,
-        reference: result.output.reference,
-        reason_code: result.output.reason_code,
-        system_error_code: result.output.system_error_code,
-        system_error_detail: result.output.system_error_detail
-      },
-      debug: result.output.debug
-    };
+      output: replRender.output
+    });
   }
 
-  return {
-    kind: result.kind,
+  return SessionStepResponseSchema.parse({
+    kind: replRender.kind,
     next_state: result.nextState,
-    message_key: result.messageKey,
-    message: result.message
-  };
+    text: replRender.text
+  });
 }
 
 export function createSessionStepHandler(input: {
@@ -77,16 +76,6 @@ export function createSessionStepHandler(input: {
 
     try {
       const payload = SessionStepRequestSchema.parse(await request.json());
-      if (payload.raw_input_text === "") {
-        return json(
-          {
-            kind: "noop",
-            next_state: payload.state_snapshot
-          },
-          200,
-          corsOrigin
-        );
-      }
       const result = await stepInteraction({
         rawInputText: payload.raw_input_text,
         state: payload.state_snapshot,
