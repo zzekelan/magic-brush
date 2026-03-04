@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Play, Pause, RotateCcw, FastForward, Terminal, AlertCircle } from 'lucide-react';
 import { createApiClient, type SessionStepResponse } from './lib/api-client';
+import {
+  INTERACTION_MESSAGES,
+  localizeBilingualMessage,
+  localizeMessage
+} from '../../../src/interaction/messages';
 
 // --- Types & Contracts ---
 type Language = 'en' | 'zh';
@@ -60,22 +65,17 @@ function isOnboardingComplete(state: Record<string, unknown>) {
 function getOnboardingPromptByLang(state: Record<string, unknown>, lang: Language): string {
   const onboarding = readOnboarding(state);
   if (onboarding?.step === 'world_background') {
-    return DICT[lang].prompt_world_background;
+    return localizeMessage(INTERACTION_MESSAGES.onboarding_prompt_world_background, lang);
   }
-  return DICT[lang].prompt_role;
+  return localizeMessage(INTERACTION_MESSAGES.onboarding_prompt_role, lang);
 }
 
-function pickLocalizedText(text: string, lang: Language): string {
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  if (lines.length < 2) {
-    return text;
-  }
-
-  return lang === 'zh' ? lines[1] : lines[0];
+function getAckTextByLang(input: {
+  kind: 'system_ack' | 'onboarding_ack';
+  text: string;
+  lang: Language;
+}): string {
+  return localizeBilingualMessage(input.text, input.lang) ?? input.text;
 }
 
 // --- Dictionary ---
@@ -85,8 +85,6 @@ const DICT = {
     developer: 'Developer Mode',
     welcome_explore: 'Welcome to Magic Brush.',
     welcome_dev: 'Welcome to Magic Brush Runtime.',
-    prompt_role: 'Please define your role first.',
-    prompt_world_background: 'Please define your world background first.',
     judging: 'Judging...',
     system_error: 'System Error',
     action_rejected: 'Action Rejected',
@@ -99,8 +97,6 @@ const DICT = {
     developer: '开发者模式',
     welcome_explore: '欢迎来到 Magic Brush。',
     welcome_dev: '欢迎来到 Magic Brush Runtime。',
-    prompt_role: '请先定义你的角色。',
-    prompt_world_background: '请先定义你的世界背景。',
     judging: '判定中...',
     system_error: '系统异常',
     action_rejected: '行动被拒',
@@ -111,17 +107,30 @@ const DICT = {
 };
 
 // --- Config ---
-const CONFIG = {
-  typewriter: {
-    speed: 50, // ms per char
-    pausePunctuation: 400, // ms pause at punctuation
-    blinkRate: 530,
-    enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  }
+const TYPEWRITER_CONFIG = {
+  speed: 50, // ms per char
+  pausePunctuation: 400, // ms pause at punctuation
+  blinkRate: 530
 };
 
+function isTypewriterEnabled() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return true;
+  }
+
+  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function buildTypewriterConfig(overrides?: Partial<typeof TYPEWRITER_CONFIG>) {
+  return {
+    ...TYPEWRITER_CONFIG,
+    ...overrides,
+    enabled: isTypewriterEnabled()
+  };
+}
+
 // --- Hooks ---
-function useTypewriter(text: string, config: typeof CONFIG.typewriter) {
+function useTypewriter(text: string, config: ReturnType<typeof buildTypewriterConfig>) {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -193,7 +202,8 @@ function useTypewriter(text: string, config: typeof CONFIG.typewriter) {
 
 // --- Components ---
 function CurrentTurnDisplay({ turn, isLoading, lang, onTypingComplete }: { turn: TurnResponse, isLoading: boolean, lang: Language, onTypingComplete?: () => void }) {
-  const { displayedText, isTyping, isPaused, pause, resume, replay, skip } = useTypewriter(turn.narration_text || '', CONFIG.typewriter);
+  const typewriterConfig = useMemo(() => buildTypewriterConfig(), []);
+  const { displayedText, isTyping, isPaused, pause, resume, replay, skip } = useTypewriter(turn.narration_text || '', typewriterConfig);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -281,7 +291,8 @@ function CurrentTurnDisplay({ turn, isLoading, lang, onTypingComplete }: { turn:
 }
 
 function IntroScreen({ onComplete, lang, setLang }: { onComplete: (mode: 'explore' | 'developer') => void, lang: Language, setLang: (l: Language) => void }) {
-  const { displayedText, isTyping } = useTypewriter('Magic Brush', { ...CONFIG.typewriter, speed: 100 });
+  const introTypewriterConfig = useMemo(() => buildTypewriterConfig({ speed: 100 }), []);
+  const { displayedText, isTyping } = useTypewriter('Magic Brush', introTypewriterConfig);
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
@@ -405,7 +416,11 @@ export default function App() {
         });
         setCurrentReplRender(response);
       } else {
-        const message = pickLocalizedText(response.text, lang);
+        const message = getAckTextByLang({
+          kind: response.kind,
+          text: response.text,
+          lang
+        });
         const nextPrompt = isOnboardingComplete(nextState) ? '' : getOnboardingPromptByLang(nextState, lang);
         setCurrentTurn({
           narration_text: message,

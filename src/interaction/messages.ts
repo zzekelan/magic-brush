@@ -27,6 +27,26 @@ export const INTERACTION_MESSAGES: Record<InteractionMessageKey, LocalizedText> 
   }
 };
 
+export function localizeMessage(message: LocalizedText, lang: keyof LocalizedText): string {
+  return message[lang];
+}
+
 export function renderBilingualMessage(message: LocalizedText): string {
   return `${message.en}\n${message.zh}`;
+}
+
+const BILINGUAL_TO_LOCALIZED = new Map<string, LocalizedText>(
+  Object.values(INTERACTION_MESSAGES).map((message) => [renderBilingualMessage(message), message])
+);
+
+export function localizeBilingualMessage(
+  text: string,
+  lang: keyof LocalizedText
+): string | undefined {
+  const message = BILINGUAL_TO_LOCALIZED.get(text);
+  if (!message) {
+    return undefined;
+  }
+
+  return localizeMessage(message, lang);
 }

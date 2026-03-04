@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { INTERACTION_MESSAGES, renderBilingualMessage } from "../../../src/interaction/messages";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -279,5 +280,49 @@ describe("frontend parity critical paths", () => {
       "judge_ms"
     );
     expect(screen.queryByText("World State")).not.toBeInTheDocument();
+  });
+
+  it("maps onboarding_ack by shared bilingual text instead of next_state inference", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          kind: "onboarding_ack",
+          text: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_setup_already_complete),
+          next_state: {
+            onboarding: {
+              completed: true,
+              step: "world_background",
+              role_profile: "A ranger",
+              world_background: "Steam city"
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          kind: "system_ack",
+          text: renderBilingualMessage(INTERACTION_MESSAGES.system_ack_session_reset),
+          next_state: {}
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await startMode("Explore World");
+
+    submitInput("A ranger");
+    await waitFor(() => {
+      expect(
+        screen.getByText("Setup already complete. You can start taking actions.")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("World background recorded. Setup complete, you can start taking actions.")
+      ).not.toBeInTheDocument();
+    });
+
+    submitInput("/reset");
+    await waitFor(() => {
+      expect(screen.getByText("Session state reset.")).toBeInTheDocument();
+    });
   });
 });
