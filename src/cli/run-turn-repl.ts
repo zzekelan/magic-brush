@@ -2,20 +2,15 @@ import "dotenv/config";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { createJudgeAgent } from "../agents/judge-agent";
-import { createNarrateAgent } from "../agents/narrate-agent";
-import { loadLlmConfig } from "../config/llm";
-import { OpenAICompatibleProvider } from "../providers/openai-compatible";
-import { runLiveTurn } from "../runtime/run-live-turn";
 import { parseReplArgs } from "./parse-cli-args";
 import {
-  applyOnboardingInput,
-  applyReplCommand,
   formatReplRender,
   getOnboardingPrompt,
-  isOnboardingComplete,
-  shouldExit
+  isOnboardingComplete
 } from "./repl-session";
+import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
+import { toReplRender } from "../interaction/repl-render";
+import { stepInteraction } from "../interaction/step-engine";
 
 type ReplTurnOutput = {
   narration_text: string;
@@ -53,62 +48,33 @@ export async function runReplSession(input: {
       continue;
     }
 
-    if (shouldExit(text)) {
+    const step = await stepInteraction({
+      rawInputText: text,
+      debug,
+      state,
+      runTurn: input.runTurn
+    });
+
+    if (step.kind === "exit") {
       break;
     }
 
-    const nextStateFromCommand = applyReplCommand(text, state);
-    if (nextStateFromCommand !== state) {
-      state = nextStateFromCommand;
-      input.print(
-        formatReplRender(
-          {
-            kind: "system_ack",
-            text: "Session state reset.\n会话已重置。"
-          },
-          debug
-        )
-      );
+    state = step.nextState;
+
+    if (step.kind === "noop") {
       continue;
     }
 
-    if (!isOnboardingComplete(state)) {
-      const onboarding = applyOnboardingInput(text, state);
-      state = onboarding.state;
-      input.print(
-        formatReplRender(
-          {
-            kind: "onboarding_ack",
-            text: onboarding.message
-          },
-          debug
-        )
-      );
-      continue;
+    const render = toReplRender(step);
+    if (render) {
+      input.print(formatReplRender(render, debug));
     }
-
-    const out = await input.runTurn({
-      rawInputText: text,
-      debug,
-      state
-    });
-    input.print(formatReplRender({ kind: "turn_result", output: out }, debug));
-    state = out.state;
   }
 }
 
 async function main() {
   const { debug } = parseReplArgs(process.argv.slice(2));
-  const config = loadLlmConfig();
-  const provider = OpenAICompatibleProvider.fromConfig({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
-    timeoutMs: config.timeoutMs
-  });
-
-  const judgeAgent = createJudgeAgent(provider);
-  const narrateAgent = createNarrateAgent(provider);
+  const runTurnExecutor = createLiveTurnExecutor();
   const rl = createInterface({ input, output });
 
   try {
@@ -117,12 +83,10 @@ async function main() {
       ask: (prompt) => rl.question(prompt),
       print: (line) => console.log(line),
       runTurn: ({ rawInputText, debug: turnDebug, state }) =>
-        runLiveTurn({
+        runTurnExecutor({
           rawInputText,
           debug: turnDebug,
-          state,
-          judgeAgent,
-          narrateAgent
+          state
         })
     });
   } finally {

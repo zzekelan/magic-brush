@@ -1,126 +1,34 @@
-export function shouldExit(input: string): boolean {
-  return input.trim() === "/exit";
-}
+import { INTERACTION_MESSAGES, renderBilingualMessage } from "../interaction/messages";
+import {
+  applyOnboardingInput as applyOnboardingInputCore,
+  applyReplCommand as applyReplCommandCore,
+  getOnboardingPromptMessageKey,
+  getOnboardingStep,
+  isOnboardingComplete,
+  shouldExit
+} from "../interaction/session-core";
+import type { ReplRender } from "../interaction/repl-render";
+import type { LocalizedText } from "../interaction/types";
 
-type ReplOutput = {
-  narration_text: string;
-  reference: string;
-  system_error_code?: string;
-  system_error_detail?: string;
-  [key: string]: unknown;
-};
+export { getOnboardingStep, isOnboardingComplete, shouldExit };
 
-export type ReplRender =
-  | {
-      kind: "onboarding_prompt" | "onboarding_ack" | "system_ack";
-      text: string;
-    }
-  | {
-      kind: "turn_result";
-      output: ReplOutput;
-    };
-
-type OnboardingStep = "role_profile" | "world_background";
-
-type OnboardingState = {
-  completed: boolean;
-  step: OnboardingStep;
-  role_profile?: string;
-  world_background?: string;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readOnboarding(state: Record<string, unknown>): OnboardingState | undefined {
-  const raw = state.onboarding;
-  if (!isRecord(raw)) {
-    return undefined;
-  }
-
-  const completed = raw.completed === true;
-  const step = raw.step === "world_background" ? "world_background" : "role_profile";
-  const roleProfile = typeof raw.role_profile === "string" ? raw.role_profile : undefined;
-  const worldBackground =
-    typeof raw.world_background === "string" ? raw.world_background : undefined;
-
-  return {
-    completed,
-    step,
-    role_profile: roleProfile,
-    world_background: worldBackground
-  };
-}
-
-function withOnboarding(
-  state: Record<string, unknown>,
-  onboarding: OnboardingState
-): Record<string, unknown> {
-  return {
-    ...state,
-    onboarding
-  };
-}
-
-export function isOnboardingComplete(state: Record<string, unknown>): boolean {
-  return readOnboarding(state)?.completed === true;
+export function getOnboardingPromptMessage(state: Record<string, unknown>): LocalizedText {
+  const messageKey = getOnboardingPromptMessageKey(state);
+  return INTERACTION_MESSAGES[messageKey];
 }
 
 export function getOnboardingPrompt(state: Record<string, unknown>): string {
-  const onboarding = readOnboarding(state);
-  if (onboarding?.step === "world_background") {
-    return [
-      "Please define your world background first.",
-      "请先定义你的世界背景。"
-    ].join("\n");
-  }
-
-  return [
-    "Please define your role first.",
-    "请先定义你的角色。"
-  ].join("\n");
+  return renderBilingualMessage(getOnboardingPromptMessage(state));
 }
 
 export function applyOnboardingInput(
   input: string,
   state: Record<string, unknown>
 ): { state: Record<string, unknown>; message: string } {
-  const text = input.trim();
-  const current = readOnboarding(state);
-
-  if (current?.completed === true) {
-    return {
-      state,
-      message: [
-        "Setup already complete. You can start taking actions.",
-        "设定已完成，你可以开始行动。"
-      ].join("\n")
-    };
-  }
-
-  if (current?.step === "world_background") {
-    return {
-      state: withOnboarding(state, {
-        completed: true,
-        step: "world_background",
-        role_profile: current.role_profile,
-        world_background: text
-      }),
-      message: [
-        "World background recorded. Setup complete, you can start taking actions.",
-        "已记录世界背景。设定完成，你可以开始行动。"
-      ].join("\n")
-    };
-  }
-
+  const next = applyOnboardingInputCore(input, state);
   return {
-    state: withOnboarding(state, {
-      completed: false,
-      step: "world_background",
-      role_profile: text
-    }),
-    message: ["Role profile recorded.", "已记录角色设定。"].join("\n")
+    state: next.state,
+    message: renderBilingualMessage(INTERACTION_MESSAGES[next.messageKey])
   };
 }
 
@@ -128,11 +36,7 @@ export function applyReplCommand(
   input: string,
   state: Record<string, unknown>
 ): Record<string, unknown> {
-  if (input.trim() === "/reset") {
-    return {};
-  }
-
-  return state;
+  return applyReplCommandCore(input, state);
 }
 
 export function formatReplRender(render: ReplRender, debug: boolean): string {

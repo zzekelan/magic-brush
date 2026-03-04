@@ -3,9 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:all": "bun run test && bun run test:api && bun run test:frontend",
+    "test:api": "bun run --cwd apps/api test",
+    "test:frontend": "bun run --cwd apps/frontend test",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:frontend": "bun run --cwd apps/frontend dev",
     "turn": "bun src/cli/run-turn.ts",
     "turn:repl": "bun src/cli/run-turn-repl.ts"
   },

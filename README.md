@@ -112,6 +112,46 @@ Runtime also stores short dialogue continuity memory under `state.conversation_c
 bun run test
 ```
 
+Run all monorepo tests (runtime + api + frontend):
+
+```bash
+bun run test:all
+```
+
+## Run Monorepo Apps (Split Dev Servers)
+
+Start API server (`apps/api`, default `http://localhost:8787`):
+
+```bash
+bun run dev:api
+```
+
+Start frontend (`apps/frontend`, default `http://localhost:5173`):
+
+```bash
+bun run dev:frontend
+```
+
+Frontend reads API base URL from `apps/frontend/.env.example` (`VITE_API_BASE_URL`).
+
+Frontend session flow now calls `POST /api/session/step` (the only API gameplay endpoint) so command and onboarding behavior stays aligned with CLI semantics:
+
+- Commands: `/reset`, `/exit`
+- Onboarding gate: `role_profile -> world_background -> normal turn`
+- State handoff: always send back `next_state` from previous response
+
+`/api/session/step` response kinds:
+
+- `noop | exit` -> `{ kind, next_state }`
+- `system_ack | onboarding_ack` -> `{ kind, text, next_state }`
+- `turn_result` -> `{ kind, output, next_state }`
+
+Frontend debug policy:
+
+- Explore mode always sends `debug=false`
+- Developer mode always sends `debug=true`
+- Debug JSON is rendered only in the developer panel, never mixed into narration text
+
 ## Troubleshooting No Output
 
 If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:
