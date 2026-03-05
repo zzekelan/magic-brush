@@ -3,14 +3,49 @@ import { z } from "zod";
 import { OpenAICompatibleProvider } from "../../src/providers/openai-compatible";
 
 describe("OpenAICompatibleProvider", () => {
-  it("requests strict json_schema and parses output", async () => {
+  it("routes task temperature and extracts usage tokens", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "{\"ok\":true}" } }],
+      usage: { total_tokens: 42 }
+    });
+
+    const provider = new OpenAICompatibleProvider({
+      model: "test-model",
+      createCompletion: create,
+      judgeTemperature: 0,
+      narrateTemperature: 1
+    });
+
+    const out = await provider.generateStructured({
+      task: "judge",
+      schemaName: "JudgeOutput",
+      schema: z.object({ ok: z.boolean() }),
+      messages: [{ role: "user", content: "test" }]
+    });
+
+    expect(out.data).toEqual({ ok: true });
+    expect(out.usage_total_tokens).toBe(42);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "test-model",
+        temperature: 0,
+        response_format: expect.objectContaining({
+          type: "json_schema"
+        })
+      })
+    );
+  });
+
+  it("falls back usage_total_tokens to 0 when provider usage metadata is absent", async () => {
     const create = vi.fn().mockResolvedValue({
       choices: [{ message: { content: "{\"narration_text\":\"ok\"}" } }]
     });
 
     const provider = new OpenAICompatibleProvider({
       model: "test-model",
-      createCompletion: create
+      createCompletion: create,
+      judgeTemperature: 0,
+      narrateTemperature: 1
     });
 
     const out = await provider.generateStructured({
@@ -20,15 +55,9 @@ describe("OpenAICompatibleProvider", () => {
       messages: [{ role: "user", content: "test" }]
     });
 
-    expect(out).toEqual({ narration_text: "ok" });
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: "test-model",
-        response_format: expect.objectContaining({
-          type: "json_schema"
-        })
-      })
-    );
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ temperature: 1 }));
+    expect(out.data).toEqual({ narration_text: "ok" });
+    expect(out.usage_total_tokens).toBe(0);
   });
 
   it("fails fast when completion call exceeds timeout", async () => {

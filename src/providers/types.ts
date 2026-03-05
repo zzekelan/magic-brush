@@ -14,8 +14,13 @@ export type GenerateStructuredRequest<TSchema extends z.ZodTypeAny> = {
   messages: ProviderMessage[];
 };
 
+export type GenerateStructuredResult<TSchema extends z.ZodTypeAny> = {
+  data: z.infer<TSchema>;
+  usage_total_tokens: number;
+};
+
 export type LlmProvider = {
   generateStructured<TSchema extends z.ZodTypeAny>(
     request: GenerateStructuredRequest<TSchema>
-  ): Promise<z.infer<TSchema>>;
+  ): Promise<GenerateStructuredResult<TSchema>>;
 };
