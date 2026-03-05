@@ -17,37 +17,49 @@ describe("runTurn debug channel", () => {
         narration_text: "The gate remains shut.",
         reference: "Search nearby."
       }),
-      state: {}
+      state: {},
+      judgeTemperature: 0,
+      narrateTemperature: 1
     });
 
     expect(out.debug).toBeUndefined();
   });
 
-  it("includes debug payload when debug=true", async () => {
+  it("includes debug.llm payload with retry-accumulated usage when debug=true", async () => {
     const out = await runTurn({
       rawInputText: "open gate",
       debug: true,
       judge: async () => ({
-        verdict: "approve",
-        reason_code: "RULE_CONFLICT",
-        internal_reason: "ok",
-        confidence: 0.95,
-        ref_from_judge: "Proceed."
+        data: {
+          verdict: "approve",
+          reason_code: "RULE_CONFLICT",
+          internal_reason: "ok",
+          confidence: 0.95,
+          ref_from_judge: "Proceed."
+        },
+        usage_total_tokens: 100
       }),
-      narrate: async () => {
-        throw new Error("narrate timeout");
-      },
-      state: { hp: 10, approved_interaction_history: [] }
+      narrate: async () => ({
+        data: {},
+        usage_total_tokens: 70
+      }),
+      state: { hp: 10, approved_interaction_history: [] },
+      judgeTemperature: 0,
+      narrateTemperature: 1
     });
 
-    expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
+    expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
     expect(out.system_error_detail).toBeUndefined();
     expect(out.debug).toEqual(
       expect.objectContaining({
-        attempts: { judge: 1, narrate: 4 },
+        llm: {
+          judge: { temperature: 0, attempts: 1, usage_total_tokens: 100 },
+          narrate: { temperature: 1, attempts: 4, usage_total_tokens: 280 },
+          usage_total_tokens: 380
+        },
         error: expect.objectContaining({
-          system_error_code: "NARRATE_CALL_FAILED",
-          system_error_detail: expect.stringContaining("timeout")
+          system_error_code: "NARRATE_SCHEMA_INVALID",
+          system_error_detail: expect.stringContaining("narration_text")
         })
       })
     );

@@ -6,6 +6,8 @@ import { runTurn } from "./pipeline";
 export async function runLiveTurn(input: {
   rawInputText: string;
   debug?: boolean;
+  judgeTemperature?: number;
+  narrateTemperature?: number;
   state: Record<string, unknown>;
   judgeAgent: { run: (ctx: JudgeContext) => Promise<unknown> };
   narrateAgent: { run: (ctx: NarrateContext) => Promise<unknown> };
@@ -20,6 +22,8 @@ export async function runLiveTurn(input: {
     debug: input.debug,
     judge: () => input.judgeAgent.run(judgeContext),
     narrate: (ctx) => input.narrateAgent.run(ctx),
-    state: input.state
+    state: input.state,
+    judgeTemperature: input.judgeTemperature,
+    narrateTemperature: input.narrateTemperature
   });
 }

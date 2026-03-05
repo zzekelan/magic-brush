@@ -2,24 +2,33 @@ import { describe, expect, it, vi } from "vitest";
 import { runLiveTurn } from "../../src/runtime/run-live-turn";
 
 describe("runLiveTurn", () => {
-  it("passes raw_input_text and state_snapshot to judge and narrate paths", async () => {
+  it("passes context and reports debug.llm stats from provider-style agent output", async () => {
     const judgeRun = vi.fn().mockResolvedValue({
-      verdict: "reject",
-      reason_code: "MISSING_PREREQ",
-      internal_reason: "x",
-      confidence: 0.9,
-      ref_from_judge: "Find the key."
+      data: {
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ",
+        internal_reason: "x",
+        confidence: 0.9,
+        ref_from_judge: "Find the key."
+      },
+      usage_total_tokens: 120
     });
     const narrateRun = vi.fn().mockResolvedValue({
-      narration_text: "You hesitate at the gate.",
-      reference: "Search the fountain."
+      data: {
+        narration_text: "You hesitate at the gate.",
+        reference: "Search the fountain."
+      },
+      usage_total_tokens: 30
     });
     const state = {
       approved_interaction_history: [{ raw_input_text: "look", narration_text: "Earlier narration." }]
     };
 
-    await runLiveTurn({
+    const out = await runLiveTurn({
       rawInputText: "open gate",
+      debug: true,
+      judgeTemperature: 0.1,
+      narrateTemperature: 1.3,
       state,
       judgeAgent: { run: judgeRun },
       narrateAgent: { run: narrateRun }
@@ -35,5 +44,10 @@ describe("runLiveTurn", () => {
         state_snapshot: state
       })
     );
+    expect(out.debug?.llm).toEqual({
+      judge: { temperature: 0.1, attempts: 1, usage_total_tokens: 120 },
+      narrate: { temperature: 1.3, attempts: 1, usage_total_tokens: 30 },
+      usage_total_tokens: 150
+    });
   });
 });

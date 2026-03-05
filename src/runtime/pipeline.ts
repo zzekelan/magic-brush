@@ -15,9 +15,18 @@ type DebugStateSnapshot = {
 };
 
 export type TurnDebug = {
-  attempts: {
-    judge: number;
-    narrate: number;
+  llm: {
+    judge: {
+      temperature: number;
+      attempts: number;
+      usage_total_tokens: number;
+    };
+    narrate: {
+      temperature: number;
+      attempts: number;
+      usage_total_tokens: number;
+    };
+    usage_total_tokens: number;
   };
   judge_context_snapshot: {
     raw_input_text: string;
@@ -96,6 +105,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function normalizeAgentRunResult(raw: unknown): { data: unknown; usage_total_tokens: number } {
+  if (raw && typeof raw === "object" && "data" in raw) {
+    const usage = (raw as { usage_total_tokens?: unknown }).usage_total_tokens;
+    return {
+      data: (raw as { data: unknown }).data,
+      usage_total_tokens: typeof usage === "number" && usage >= 0 ? usage : 0
+    };
+  }
+
+  return { data: raw, usage_total_tokens: 0 };
+}
+
 function readApprovedInteractionTail(state: Record<string, unknown>) {
   const raw = state.approved_interaction_history;
   if (!Array.isArray(raw)) {
@@ -135,10 +156,16 @@ export async function runTurn(deps: {
   judge: () => Promise<unknown>;
   narrate: (ctx: NarrateContext) => Promise<unknown>;
   state: Record<string, unknown>;
+  judgeTemperature?: number;
+  narrateTemperature?: number;
 }): Promise<TurnResult> {
   const debugEnabled = deps.debug === true;
+  const judgeTemperature = deps.judgeTemperature ?? 0;
+  const narrateTemperature = deps.narrateTemperature ?? 1;
   let judgeAttempts = 0;
   let narrateAttempts = 0;
+  let judgeUsageTotalTokens = 0;
+  let narrateUsageTotalTokens = 0;
   let judgeResultSnapshot: TurnDebug["judge_result_snapshot"] | undefined;
   let narrateContextSnapshot: TurnDebug["narrate_context_snapshot"] | undefined;
 
@@ -158,9 +185,18 @@ export async function runTurn(deps: {
     return {
       ...result,
       debug: {
-        attempts: {
-          judge: judgeAttempts,
-          narrate: narrateAttempts
+        llm: {
+          judge: {
+            temperature: judgeTemperature,
+            attempts: judgeAttempts,
+            usage_total_tokens: judgeUsageTotalTokens
+          },
+          narrate: {
+            temperature: narrateTemperature,
+            attempts: narrateAttempts,
+            usage_total_tokens: narrateUsageTotalTokens
+          },
+          usage_total_tokens: judgeUsageTotalTokens + narrateUsageTotalTokens
         },
         judge_context_snapshot: judgeContextSnapshot,
         judge_result_snapshot: judgeResultSnapshot,
@@ -176,7 +212,9 @@ export async function runTurn(deps: {
   while (judgeResult === null) {
     try {
       judgeAttempts += 1;
-      const candidate = JudgeOutputSchema.parse(await deps.judge());
+      const normalized = normalizeAgentRunResult(await deps.judge());
+      judgeUsageTotalTokens += normalized.usage_total_tokens;
+      const candidate = JudgeOutputSchema.parse(normalized.data);
       const needRetry = shouldRetryJudge({
         confidence: candidate.confidence,
         schemaValid: true,
@@ -264,7 +302,9 @@ export async function runTurn(deps: {
   for (;;) {
     try {
       narrateAttempts += 1;
-      const narrateResult = NarrateOutputSchema.parse(await deps.narrate(narrateContext));
+      const normalized = normalizeAgentRunResult(await deps.narrate(narrateContext));
+      narrateUsageTotalTokens += normalized.usage_total_tokens;
+      const narrateResult = NarrateOutputSchema.parse(normalized.data);
       const stateAfterApprovedCommit =
         judgeResult.verdict === "approve"
           ? commitApprovedInteraction({
