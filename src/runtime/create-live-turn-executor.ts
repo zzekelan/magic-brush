@@ -28,7 +28,9 @@ export function createLiveTurnExecutor(deps?: {
         baseUrl: cfg.baseUrl,
         apiKey: cfg.apiKey,
         model: cfg.model,
-        timeoutMs: cfg.timeoutMs
+        timeoutMs: cfg.timeoutMs,
+        judgeTemperature: cfg.judgeTemperature,
+        narrateTemperature: cfg.narrateTemperature
       }));
   const createJudge = deps?.createJudgeAgent ?? ((provider: unknown) => createJudgeAgent(provider as never));
   const createNarrate =
@@ -45,6 +47,8 @@ export function createLiveTurnExecutor(deps?: {
       rawInputText: input.rawInputText,
       debug: input.debug,
       state: input.state,
+      judgeTemperature: config.judgeTemperature,
+      narrateTemperature: config.narrateTemperature,
       judgeAgent,
       narrateAgent
     });

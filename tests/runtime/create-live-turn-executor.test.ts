@@ -7,7 +7,9 @@ describe("createLiveTurnExecutor", () => {
       baseUrl: "http://x",
       apiKey: "k",
       model: "m",
-      timeoutMs: 1000
+      timeoutMs: 1000,
+      judgeTemperature: 0.25,
+      narrateTemperature: 1.15
     });
     const createProvider = vi.fn().mockReturnValue({});
     const judgeAgent = { run: vi.fn() };
@@ -29,11 +31,15 @@ describe("createLiveTurnExecutor", () => {
     await exec({ rawInputText: "look", state: { x: 1 }, debug: true });
 
     expect(loadLlmConfig).toHaveBeenCalledTimes(1);
-    expect(createProvider).toHaveBeenCalledTimes(1);
+    expect(createProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ judgeTemperature: 0.25, narrateTemperature: 1.15 })
+    );
     expect(runLiveTurnImpl).toHaveBeenCalledWith({
       rawInputText: "look",
       state: { x: 1 },
       debug: true,
+      judgeTemperature: 0.25,
+      narrateTemperature: 1.15,
       judgeAgent,
       narrateAgent
     });
