@@ -30,9 +30,16 @@ describe("createJudgeAgent", () => {
     expect(call.messages[0].content).toContain("SAFETY_BLOCKED");
     expect(call.messages[0].content).toContain("number in [0, 1]");
     expect(call.messages[0].content).toContain("state_snapshot.onboarding");
+    expect(call.messages[0].content).toContain("state_snapshot.interaction_turn_count");
     expect(call.messages[0].content).toContain("completed");
     expect(call.messages[0].content).toContain("role_profile");
     expect(call.messages[0].content).toContain("world_background");
+    expect(call.messages[0].content).toContain("interaction_turn_count <= 2");
+    expect(call.messages[0].content).toContain("prefer approve");
+    expect(call.messages[0].content).toContain("If verdict is reject");
+    expect(call.messages[0].content).toContain(
+      "concrete, immediately executable next action"
+    );
     expect(call.messages[0].content).toContain("in-world guidance sentence in second person");
     expect(call.messages[0].content).toContain("Use immersive in-world language only.");
     expect(call.messages[0].content).toContain("Avoid out-of-world meta wording.");

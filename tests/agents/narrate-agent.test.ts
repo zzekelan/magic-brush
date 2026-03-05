@@ -24,6 +24,7 @@ describe("createNarrateAgent", () => {
     expect(call.messages[0].content).toContain("json object");
     expect(call.messages[0].content).toContain("raw_input_text");
     expect(call.messages[0].content).toContain("state_snapshot");
+    expect(call.messages[0].content).toContain("state_snapshot.interaction_turn_count");
     expect(call.messages[0].content).toContain("conversation_context");
     expect(call.messages[0].content).toContain("state_snapshot.onboarding");
     expect(call.messages[0].content).toContain("completed");
@@ -36,6 +37,14 @@ describe("createNarrateAgent", () => {
     expect(call.messages[0].content).toContain("Avoid out-of-world meta wording.");
     expect(call.messages[0].content).toContain("Follow the same language as raw_input_text.");
     expect(call.messages[0].content).toContain("Do not include any keys outside the schema");
+    expect(call.messages[0].content).toContain("When interaction_turn_count <= 2");
+    expect(call.messages[0].content).toContain("low-information input");
+    expect(call.messages[0].content).toContain(
+      "narration_text must naturally include actionable directions"
+    );
+    expect(call.messages[0].content).toContain(
+      "reference must provide 2-4 concise executable options"
+    );
     expect(call.messages[0].content).toContain(
       "Do not treat rejected entries as world facts."
     );
