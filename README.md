@@ -1,169 +1,83 @@
-# Magic Brush Runtime V1
+# Magic Brush
 
-## Pipeline Order
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-Each turn runs in this order:
+Magic Brush is an LLM-powered immersive interactive fiction runtime.
 
-`PlayerInput -> Judge -> Validate/Retry -> BuildNarrateContext -> Narrate -> (approve+narrate success only) StateCommit -> Respond`
+> Where your words land, the world starts growing.
 
-Judge runs first. Narrate is the only user-facing output stage.
+> Start with one action and shape your world.  
+> The story keeps evolving based on your choices.
 
-Judge and Narrate each retry up to 3 times on transient failures before system fallback.
+## Core Features
 
-## Context Contract
+- Two-stage turn engine: `Judge -> Narrate` with structured JSON output
+- Stateful sessions with `/reset` and `/exit`
+- OpenAI-compatible provider interface (Chat Completions compatible)
+- Multiple entry points: Web / CLI / REPL
 
-- `JudgeContext` gets:
-  - `raw_input_text`
-  - `state_snapshot`
-- `NarrateContext` gets:
-  - `raw_input_text`
-  - `verdict`
-  - `reason_code`
-  - `ref_from_judge`
-  - `state_snapshot`
+## Recommended: Web Mode
 
-Narrate does not receive `internal_reason`.
-
-## Error Domains
-
-- `reason_code`: business/gameplay outcomes only (for example `MISSING_PREREQ`).
-- `system_error_code`: system/runtime failures (for example `JUDGE_LOW_CONFIDENCE`, `NARRATE_SCHEMA_INVALID`).
-
-These two domains are separate and should not be mixed.
-
-## Privacy Boundary
-
-`internal_reason` is internal-only. It must never be sent into narrate context or user-visible output.
-
-Use `buildNarrateContext()` to sanitize Judge output before any narrate call.
-
-## Run One Live Turn
-
-1. Create `.env` from `.env.example`.
-2. Set:
-   - `LLM_BASE_URL`
-   - `LLM_API_KEY`
-   - `LLM_MODEL`
-   - `LLM_TIMEOUT_MS` (optional, default `30000`)
-3. Run:
+1. Install dependencies
 
 ```bash
-bun run turn "look around"
+bun install
 ```
 
-Output is JSON containing `narration_text`, `reference`, `state`, and optional `system_error_code`.
-
-Use `--debug` to include runtime diagnostics:
+2. Configure API environment variables
 
 ```bash
-bun run turn --debug "look around"
+cp .env.example apps/api/.env
 ```
 
-With `--debug`, response adds `debug` containing attempts, context snapshots, and detailed error diagnostics (including `system_error_detail`).
+At minimum:
 
-## REPL Mode (In-Process Memory)
+- `LLM_BASE_URL`
+- `LLM_API_KEY`
+- `LLM_MODEL`
+- `LLM_TIMEOUT_MS` (optional, default `30000`)
+- `LLM_JUDGE_TEMPERATURE` (optional, default `0`, range `[0, 2]`)
+- `LLM_NARRATE_TEMPERATURE` (optional, default `1.0`, range `[0, 2]`)
 
-Run:
+3. (Optional) Configure frontend environment variables
 
 ```bash
-bun run turn:repl
+cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-Or enable debug diagnostics for each turn:
-
-```bash
-bun run turn:repl --debug
-```
-
-Commands:
-
-- `/reset` clears in-memory state.
-- `/exit` exits the REPL.
-
-The REPL keeps state in memory within the same process (`state = out.state` after each turn), so gameplay can continue across prompts in one session.
-
-State history is runtime-owned under `state.approved_interaction_history` and records only approved+successful turns as:
-
-```json
-{
-  "raw_input_text": "open gate",
-  "narration_text": "The gate opens with a groan."
-}
-```
-
-History keeps the latest 50 approved interactions.
-
-Runtime also stores short dialogue continuity memory under `state.conversation_context` for both approved and rejected successful turns:
-
-```json
-{
-  "raw_input_text": "open gate",
-  "narration_text": "The gate remains shut.",
-  "verdict": "reject",
-  "reason_code": "MISSING_PREREQ"
-}
-```
-
-`conversation_context` keeps only the latest 2 entries and does not indicate world-state mutation.
-
-## Run Tests
-
-```bash
-bun run test
-```
-
-Run all monorepo tests (runtime + api + frontend):
-
-```bash
-bun run test:all
-```
-
-## Run Monorepo Apps (Split Dev Servers)
-
-Start API server (`apps/api`, default `http://localhost:8787`):
-
-```bash
-bun run dev:api
-```
-
-Start frontend (`apps/frontend`, default `http://localhost:5173`):
+4. Start frontend and API
 
 ```bash
 bun run dev:frontend
+bun run dev:api
 ```
 
-Frontend reads API base URL from `apps/frontend/.env.example` (`VITE_API_BASE_URL`).
+5. Open in browser
 
-Frontend session flow now calls `POST /api/session/step` (the only API gameplay endpoint) so command and onboarding behavior stays aligned with CLI semantics:
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:8787`
 
-- Commands: `/reset`, `/exit`
-- Onboarding gate: `role_profile -> world_background -> normal turn`
-- State handoff: always send back `next_state` from previous response
-
-`/api/session/step` response kinds:
-
-- `noop | exit` -> `{ kind, next_state }`
-- `system_ack | onboarding_ack` -> `{ kind, text, next_state }`
-- `turn_result` -> `{ kind, output, next_state }`
-
-Frontend debug policy:
-
-- Explore mode always sends `debug=false`
-- Developer mode always sends `debug=true`
-- Debug JSON is rendered only in the developer panel, never mixed into narration text
-
-## Troubleshooting No Output
-
-If `bun run turn ...` or `bun run turn:repl` appears to hang, reduce timeout and verify endpoint reachability:
+## CLI Mode (Optional)
 
 ```bash
-LLM_TIMEOUT_MS=8000 bun run turn "look around"
+cp .env.example .env
+bun run turn "look around"
 ```
 
+Optional:
+
 ```bash
-set -a; source .env; set +a
-curl -sS --max-time 10 "$LLM_BASE_URL/chat/completions" \
-  -H "Authorization: Bearer $LLM_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"model\":\"$LLM_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+bun run turn --debug "look around"
+bun run turn:repl
 ```
+
+## Test Commands
+
+```bash
+bun run test
+bun run test:all
+```
+
+## For Developers
+
+`DEVELOPMENT.md` for architecture, implementation and more details.
