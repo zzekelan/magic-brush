@@ -59,11 +59,21 @@ Details:
 
 State commit rules:
 
-- `approved_interaction_history` (max 50):
+- `approved_interaction_history` (max 100):
   - append only when `verdict=approve` and narrate succeeds
-- `conversation_context` (max 2):
+- `conversation_context` (max 6):
   - append on every successful narrate (approve or reject)
+- `interaction_turn_count`:
+  - initialized to `1` after onboarding completion
+  - incremented by `+1` only after successful narrate commit
 - If runtime returns system fallback, state is unchanged
+
+Early-turn guidance behavior:
+
+- Judge prompt uses `state_snapshot.interaction_turn_count` and when `<= 2` it should prefer approve unless clear safety risk.
+- If judge verdict is reject, `ref_from_judge` must include one concrete immediately executable next action.
+- Narrate prompt uses `state_snapshot.interaction_turn_count`; when `<= 2` and input is low-information, both `narration_text` and `reference` must provide actionable direction.
+- In this early-turn low-information case, `reference` should provide 2-4 concise executable options.
 
 System fallback output:
 
@@ -88,7 +98,7 @@ Order:
 4. onboarding gate:
    - step 1: collect `role_profile`
    - step 2: collect `world_background`
-   - then mark onboarding complete
+   - then mark onboarding complete and initialize `interaction_turn_count=1`
 5. once onboarding complete -> execute runtime turn
 
 Response kinds:
@@ -213,7 +223,9 @@ Request:
 ```json
 {
   "raw_input_text": "look around",
-  "state_snapshot": {},
+  "state_snapshot": {
+    "interaction_turn_count": 2
+  },
   "debug": false
 }
 ```
@@ -244,11 +256,15 @@ Successful response examples:
 ```json
 {
   "kind": "turn_result",
-  "next_state": {},
+  "next_state": {
+    "interaction_turn_count": 3
+  },
   "output": {
     "narration_text": "You stand in the city center.",
     "reference": "Observe nearby streets.",
-    "state": {}
+    "state": {
+      "interaction_turn_count": 3
+    }
   }
 }
 ```
