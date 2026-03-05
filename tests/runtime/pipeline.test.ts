@@ -18,6 +18,7 @@ describe("runTurn", () => {
       }),
       state: {
         hp: 10,
+        interaction_turn_count: 2,
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "Old approved narration." }
         ],
@@ -36,6 +37,7 @@ describe("runTurn", () => {
     expect(out.state.approved_interaction_history).toEqual([
       { raw_input_text: "look", narration_text: "Old approved narration." }
     ]);
+    expect(out.state.interaction_turn_count).toBe(3);
     expect(out.state.conversation_context).toEqual([
       {
         raw_input_text: "inspect gate",
@@ -69,6 +71,7 @@ describe("runTurn", () => {
       }),
       state: {
         hp: 10,
+        interaction_turn_count: 2,
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "n1" },
           { raw_input_text: "inspect gate", narration_text: "n2" }
@@ -91,6 +94,7 @@ describe("runTurn", () => {
       raw_input_text: "open gate",
       narration_text: "You push the heavy gate open."
     });
+    expect(out.state.interaction_turn_count).toBe(3);
     expect(out.state.conversation_context).toEqual([
       {
         raw_input_text: "inspect gate",

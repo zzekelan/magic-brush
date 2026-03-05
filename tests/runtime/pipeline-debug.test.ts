@@ -17,12 +17,13 @@ describe("runTurn debug channel", () => {
         narration_text: "The gate remains shut.",
         reference: "Search nearby."
       }),
-      state: {},
+      state: { interaction_turn_count: 1 },
       judgeTemperature: 0,
       narrateTemperature: 1
     });
 
     expect(out.debug).toBeUndefined();
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 
   it("includes debug.llm payload with retry-accumulated usage when debug=true", async () => {
@@ -43,7 +44,7 @@ describe("runTurn debug channel", () => {
         data: {},
         usage_total_tokens: 70
       }),
-      state: { hp: 10, approved_interaction_history: [] },
+      state: { hp: 10, interaction_turn_count: 2, approved_interaction_history: [] },
       judgeTemperature: 0,
       narrateTemperature: 1
     });
@@ -73,5 +74,6 @@ describe("runTurn debug channel", () => {
         })
       })
     );
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 });

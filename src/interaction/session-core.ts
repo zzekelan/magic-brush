@@ -106,12 +106,15 @@ export function applyOnboardingInput(
 
   if (current?.step === "world_background") {
     return {
-      state: withOnboarding(state, {
-        completed: true,
-        step: "world_background",
-        role_profile: current.role_profile,
-        world_background: text
-      }),
+      state: {
+        ...withOnboarding(state, {
+          completed: true,
+          step: "world_background",
+          role_profile: current.role_profile,
+          world_background: text
+        }),
+        interaction_turn_count: 1
+      },
       messageKey: "onboarding_ack_world_recorded_complete"
     };
   }

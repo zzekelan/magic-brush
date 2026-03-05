@@ -23,7 +23,7 @@ describe("runTurn narrate retry", () => {
           reference: "Step through."
         };
       },
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(narrateCalls).toBe(3);
@@ -34,6 +34,7 @@ describe("runTurn narrate retry", () => {
       raw_input_text: "open gate",
       narration_text: "The gate opens."
     });
+    expect(out.state.interaction_turn_count).toBe(3);
   });
 
   it("returns narrate schema error after retries are exhausted", async () => {
@@ -51,11 +52,12 @@ describe("runTurn narrate retry", () => {
         narrateCalls += 1;
         return { narration_text: "invalid missing reference" };
       },
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(narrateCalls).toBe(4);
     expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 
   it("returns narrate call failure after retries are exhausted", async () => {
@@ -73,11 +75,12 @@ describe("runTurn narrate retry", () => {
         narrateCalls += 1;
         throw new Error("narrate timeout");
       },
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(narrateCalls).toBe(4);
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
     expect(out.system_error_detail).toBeUndefined();
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 });

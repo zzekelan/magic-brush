@@ -105,11 +105,14 @@ describe("stepInteraction", () => {
         "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。"
       );
     }
-    expect(step2.nextState.onboarding).toEqual({
-      completed: true,
-      step: "world_background",
-      role_profile: "我是游侠",
-      world_background: "蒸汽朋克废土"
+    expect(step2.nextState).toEqual({
+      onboarding: {
+        completed: true,
+        step: "world_background",
+        role_profile: "我是游侠",
+        world_background: "蒸汽朋克废土"
+      },
+      interaction_turn_count: 1
     });
     expect(runTurn).not.toHaveBeenCalled();
   });

@@ -25,6 +25,7 @@ describe("system error channel", () => {
   it("does not mutate state when narrate fails", async () => {
     const original = {
       hp: 10,
+      interaction_turn_count: 2,
       approved_interaction_history: [{ raw_input_text: "look", narration_text: "n1" }],
       conversation_context: [
         {

@@ -31,12 +31,13 @@ describe("runTurn judge retry", () => {
         narration_text: "You cannot do that.",
         reference: "Inspect the room first."
       }),
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(attempts).toBe(2);
     expect(out.narration_text).toBe("You cannot do that.");
     expect(out.system_error_code).toBeUndefined();
+    expect(out.state.interaction_turn_count).toBe(3);
   });
 
   it("returns judge low-confidence error after retries exhausted", async () => {
@@ -55,12 +56,13 @@ describe("runTurn judge retry", () => {
         narrateCalls += 1;
         return { narration_text: "unused", reference: "unused" };
       },
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(out.system_error_code).toBe("JUDGE_LOW_CONFIDENCE");
     expect(out.narration_text).toMatch(/please try again/i);
     expect(narrateCalls).toBe(0);
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 
   it("returns judge schema error when judge output remains invalid", async () => {
@@ -68,10 +70,11 @@ describe("runTurn judge retry", () => {
       rawInputText: "inspect room",
       judge: async () => ({ bad: "payload" }),
       narrate: async () => ({ narration_text: "unused", reference: "unused" }),
-      state: {}
+      state: { interaction_turn_count: 2 }
     });
 
     expect(out.system_error_code).toBe("JUDGE_SCHEMA_INVALID");
     expect(out.narration_text).toMatch(/please try again/i);
+    expect(out.state.interaction_turn_count).toBe(2);
   });
 });

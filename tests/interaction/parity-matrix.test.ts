@@ -35,6 +35,13 @@ describe("interaction parity matrix", () => {
       "onboarding_ack"
     ]);
     expect(runTurn).toHaveBeenCalledTimes(1);
+    expect(runTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({
+          interaction_turn_count: 1
+        })
+      })
+    );
     expect(state).toEqual({
       onboarding: {
         completed: false,

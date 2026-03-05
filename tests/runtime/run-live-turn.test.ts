@@ -21,6 +21,7 @@ describe("runLiveTurn", () => {
       usage_total_tokens: 30
     });
     const state = {
+      interaction_turn_count: 2,
       approved_interaction_history: [{ raw_input_text: "look", narration_text: "Earlier narration." }]
     };
 
@@ -49,5 +50,6 @@ describe("runLiveTurn", () => {
       narrate: { temperature: 1.3, attempts: 1, usage_total_tokens: 30 },
       usage_total_tokens: 150
     });
+    expect(out.state.interaction_turn_count).toBe(3);
   });
 });

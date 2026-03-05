@@ -150,6 +150,14 @@ function buildStateSnapshot(state: Record<string, unknown>): DebugStateSnapshot 
   };
 }
 
+function readInteractionTurnCount(state: Record<string, unknown>): number {
+  const raw = state.interaction_turn_count;
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 1) {
+    return 1;
+  }
+  return Math.floor(raw);
+}
+
 export async function runTurn(deps: {
   rawInputText: string;
   debug?: boolean;
@@ -313,13 +321,17 @@ export async function runTurn(deps: {
               narrationText: narrateResult.narration_text
             })
           : deps.state;
-      const nextState = commitConversationContext({
+      const nextStateWithContext = commitConversationContext({
         state: stateAfterApprovedCommit,
         rawInputText: deps.rawInputText,
         narrationText: narrateResult.narration_text,
         verdict: judgeResult.verdict,
         reasonCode: judgeResult.reason_code
       });
+      const nextState = {
+        ...nextStateWithContext,
+        interaction_turn_count: readInteractionTurnCount(deps.state) + 1
+      };
 
       return withDebug({
         ...narrateResult,
