@@ -21,8 +21,8 @@ describe("commitApprovedInteraction", () => {
     ]);
   });
 
-  it("limits approved_interaction_history to 50 entries", () => {
-    const history = Array.from({ length: 55 }, (_, i) => ({
+  it("limits approved_interaction_history to 100 entries", () => {
+    const history = Array.from({ length: 105 }, (_, i) => ({
       raw_input_text: `in${i + 1}`,
       narration_text: `n${i + 1}`
     }));
@@ -31,7 +31,7 @@ describe("commitApprovedInteraction", () => {
       rawInputText: "latest-input",
       narrationText: "latest-narration"
     });
-    expect((out.approved_interaction_history as Array<Record<string, unknown>>).length).toBe(50);
+    expect((out.approved_interaction_history as Array<Record<string, unknown>>).length).toBe(100);
     expect(
       (out.approved_interaction_history as Array<Record<string, unknown>>)[0]
     ).toEqual({
@@ -68,19 +68,43 @@ describe("commitConversationContext", () => {
     ]);
   });
 
-  it("keeps only latest 2 conversation_context entries", () => {
+  it("keeps only latest 6 conversation_context entries", () => {
     const out = commitConversationContext({
       state: {
         conversation_context: [
           {
-            raw_input_text: "look",
-            narration_text: "You scan the room.",
+            raw_input_text: "look-1",
+            narration_text: "You scan room 1.",
             verdict: "approve",
             reason_code: "RULE_CONFLICT"
           },
           {
-            raw_input_text: "open gate",
-            narration_text: "The gate does not move.",
+            raw_input_text: "look-2",
+            narration_text: "You scan room 2.",
+            verdict: "reject",
+            reason_code: "MISSING_PREREQ"
+          },
+          {
+            raw_input_text: "look-3",
+            narration_text: "You scan room 3.",
+            verdict: "approve",
+            reason_code: "RULE_CONFLICT"
+          },
+          {
+            raw_input_text: "look-4",
+            narration_text: "You scan room 4.",
+            verdict: "reject",
+            reason_code: "MISSING_PREREQ"
+          },
+          {
+            raw_input_text: "look-5",
+            narration_text: "You scan room 5.",
+            verdict: "approve",
+            reason_code: "RULE_CONFLICT"
+          },
+          {
+            raw_input_text: "look-6",
+            narration_text: "You scan room 6.",
             verdict: "reject",
             reason_code: "MISSING_PREREQ"
           }
@@ -94,8 +118,32 @@ describe("commitConversationContext", () => {
 
     expect(out.conversation_context).toEqual([
       {
-        raw_input_text: "open gate",
-        narration_text: "The gate does not move.",
+        raw_input_text: "look-2",
+        narration_text: "You scan room 2.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      },
+      {
+        raw_input_text: "look-3",
+        narration_text: "You scan room 3.",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      },
+      {
+        raw_input_text: "look-4",
+        narration_text: "You scan room 4.",
+        verdict: "reject",
+        reason_code: "MISSING_PREREQ"
+      },
+      {
+        raw_input_text: "look-5",
+        narration_text: "You scan room 5.",
+        verdict: "approve",
+        reason_code: "RULE_CONFLICT"
+      },
+      {
+        raw_input_text: "look-6",
+        narration_text: "You scan room 6.",
         verdict: "reject",
         reason_code: "MISSING_PREREQ"
       },

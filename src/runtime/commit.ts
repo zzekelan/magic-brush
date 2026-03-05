@@ -1,5 +1,5 @@
-const APPROVED_HISTORY_LIMIT = 50;
-const CONVERSATION_CONTEXT_LIMIT = 2;
+const APPROVED_HISTORY_LIMIT = 100;
+const CONVERSATION_CONTEXT_LIMIT = 6;
 
 type ApprovedInteraction = {
   raw_input_text: string;
