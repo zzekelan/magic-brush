@@ -5,9 +5,9 @@ import { createLiveTurnExecutor } from "../runtime/create-live-turn-executor";
 
 async function main() {
   const { rawInputText, debug } = parseTurnArgs(process.argv.slice(2));
-  const runTurn = createLiveTurnExecutor();
+  const runtime = createLiveTurnExecutor();
 
-  const out = await runTurn({
+  const out = await runtime.executeTurn({
     rawInputText,
     debug,
     state: {}

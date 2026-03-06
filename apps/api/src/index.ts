@@ -5,9 +5,9 @@ import { createSessionStepHandler } from "./create-session-step-handler";
 import { createApiFetch } from "./router";
 
 const config = readApiConfig();
-const runTurn = createLiveTurnExecutor();
+const runtime = createLiveTurnExecutor();
 const sessionStepHandler = createSessionStepHandler({
-  runTurn,
+  runTurn: runtime.executeTurn,
   allowedOrigins: [config.allowedOrigin]
 });
 const fetch = createApiFetch({

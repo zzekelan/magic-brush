@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { runTurn } from "../../src/runtime/pipeline";
+import { runTurnPipeline } from "../../src/runtime/pipeline";
 
 describe("runTurn narrate retry", () => {
   it("retries narrate and succeeds on a later attempt", async () => {
     let narrateCalls = 0;
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "approve",
-        reason_code: "RULE_CONFLICT",
+        reason_code: "APPROVED",
         internal_reason: "ok",
         confidence: 0.95,
         ref_from_judge: "Proceed."
@@ -23,7 +23,7 @@ describe("runTurn narrate retry", () => {
           reference: "Step through."
         };
       },
-      state: { interaction_turn_count: 2 }
+      state: { completed_turn_count: 1 }
     });
 
     expect(narrateCalls).toBe(3);
@@ -34,12 +34,12 @@ describe("runTurn narrate retry", () => {
       raw_input_text: "open gate",
       narration_text: "The gate opens."
     });
-    expect(out.state.interaction_turn_count).toBe(3);
+    expect(out.state.completed_turn_count).toBe(2);
   });
 
   it("returns narrate schema error after retries are exhausted", async () => {
     let narrateCalls = 0;
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
@@ -52,17 +52,17 @@ describe("runTurn narrate retry", () => {
         narrateCalls += 1;
         return { narration_text: "invalid missing reference" };
       },
-      state: { interaction_turn_count: 2 }
+      state: { completed_turn_count: 1 }
     });
 
     expect(narrateCalls).toBe(4);
     expect(out.system_error_code).toBe("NARRATE_SCHEMA_INVALID");
-    expect(out.state.interaction_turn_count).toBe(2);
+    expect(out.state.completed_turn_count).toBe(1);
   });
 
   it("returns narrate call failure after retries are exhausted", async () => {
     let narrateCalls = 0;
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
@@ -75,12 +75,12 @@ describe("runTurn narrate retry", () => {
         narrateCalls += 1;
         throw new Error("narrate timeout");
       },
-      state: { interaction_turn_count: 2 }
+      state: { completed_turn_count: 1 }
     });
 
     expect(narrateCalls).toBe(4);
     expect(out.system_error_code).toBe("NARRATE_CALL_FAILED");
     expect(out.system_error_detail).toBeUndefined();
-    expect(out.state.interaction_turn_count).toBe(2);
+    expect(out.state.completed_turn_count).toBe(1);
   });
 });
