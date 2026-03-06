@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
 import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
+import type { JudgeOutput } from "../contracts/judge";
 import { commitApprovedInteraction, commitConversationContext } from "./commit";
 import { runJudgeStage } from "./judge-stage";
 import {
@@ -160,6 +161,22 @@ function buildStateSnapshot(state: Record<string, unknown>): DebugStateSnapshot 
   };
 }
 
+function isChineseText(text: string): boolean {
+  return /\p{Script=Han}/u.test(text);
+}
+
+function buildFirstTurnApprove(rawInputText: string): JudgeOutput {
+  return {
+    verdict: "approve",
+    reason_code: "APPROVED",
+    internal_reason: "runtime:first-turn-auto-approve",
+    confidence: 1,
+    ref_from_judge: isChineseText(rawInputText)
+      ? "你的选择会推动眼前的一切，直接说出你接下来想做什么。"
+      : "Your choice will move the scene forward. Say what you want to do next."
+  };
+}
+
 export async function runTurnPipeline(deps: {
   rawInputText: string;
   debug?: boolean;
@@ -218,24 +235,30 @@ export async function runTurnPipeline(deps: {
     };
   };
 
-  const judgeStage = await runJudgeStage({
-    judge: deps.judge
-  });
-  judgeAttempts = judgeStage.attempts;
-  judgeUsageTotalTokens = judgeStage.usage_total_tokens;
+  let judgeResult: JudgeOutput;
+  if (readCompletedTurnCount(runtimeStateSnapshot) === 0) {
+    judgeResult = buildFirstTurnApprove(deps.rawInputText);
+  } else {
+    const judgeStage = await runJudgeStage({
+      judge: deps.judge
+    });
+    judgeAttempts = judgeStage.attempts;
+    judgeUsageTotalTokens = judgeStage.usage_total_tokens;
 
-  if (!judgeStage.ok) {
-    return withDebug(
-      systemFallback(persistedState, judgeStage.system_error_code),
-      {
-        stage: "judge",
-        system_error_code: judgeStage.system_error_code,
-        system_error_detail: judgeStage.system_error_detail
-      }
-    );
+    if (!judgeStage.ok) {
+      return withDebug(
+        systemFallback(persistedState, judgeStage.system_error_code),
+        {
+          stage: "judge",
+          system_error_code: judgeStage.system_error_code,
+          system_error_detail: judgeStage.system_error_detail
+        }
+      );
+    }
+
+    judgeResult = judgeStage.output;
   }
 
-  const judgeResult = judgeStage.output;
   judgeResultSnapshot = {
     verdict: judgeResult.verdict,
     reason_code: judgeResult.reason_code,

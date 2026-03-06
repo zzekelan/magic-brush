@@ -1,7 +1,53 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runTurnPipeline } from "../../src/runtime/pipeline";
 
 describe("runTurn", () => {
+  it("skips judge on the first turn and seeds narrate with approved chinese guidance", async () => {
+    const judge = vi.fn().mockResolvedValue({
+      verdict: "reject",
+      reason_code: "MISSING_PREREQ",
+      internal_reason: "should not run",
+      confidence: 0.1,
+      ref_from_judge: "Should not appear."
+    });
+    const narrate = vi.fn().mockResolvedValue({
+      narration_text: "雾气在脚边轻轻散开。",
+      reference: "继续说出你的下一步。"
+    });
+
+    const out = await runTurnPipeline({
+      rawInputText: "你好",
+      debug: true,
+      judge,
+      narrate,
+      state: {}
+    });
+
+    expect(judge).not.toHaveBeenCalled();
+    expect(narrate).toHaveBeenCalledWith({
+      raw_input_text: "你好",
+      verdict: "approve",
+      reason_code: "APPROVED",
+      ref_from_judge: "你的选择会推动眼前的一切，直接说出你接下来想做什么。",
+      state_snapshot: {
+        completed_turn_count: 0,
+        current_turn_index: 1
+      }
+    });
+    expect(out.debug?.llm.judge).toEqual({
+      temperature: 0,
+      attempts: 0,
+      usage_total_tokens: 0
+    });
+    expect(out.debug?.judge_result_snapshot).toEqual({
+      verdict: "approve",
+      reason_code: "APPROVED",
+      confidence: 1,
+      ref_from_judge: "你的选择会推动眼前的一切，直接说出你接下来想做什么。"
+    });
+    expect(out.state.completed_turn_count).toBe(1);
+  });
+
   it("records reject turn in conversation_context without mutating approved history", async () => {
     const out = await runTurnPipeline({
       rawInputText: "open gate",

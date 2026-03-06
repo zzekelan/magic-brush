@@ -67,4 +67,45 @@ describe("executeTurn", () => {
     expect(out.state).not.toHaveProperty("current_turn_index");
   });
 
+  it("skips judge on the first turn and passes approved guidance to narrate", async () => {
+    const judgeRun = vi.fn().mockResolvedValue({
+      data: {
+        verdict: "approve",
+        reason_code: "APPROVED",
+        internal_reason: "ok",
+        confidence: 0.95,
+        ref_from_judge: "Proceed."
+      }
+    });
+    const narrateRun = vi.fn().mockResolvedValue({
+      data: {
+        narration_text: "You scan the room.",
+        reference: "Check the far doorway."
+      }
+    });
+
+    const out = await executeTurn({
+      rawInputText: "look",
+      state: {},
+      judgeAgent: { run: judgeRun },
+      narrateAgent: { run: narrateRun }
+    });
+
+    expect(judgeRun).not.toHaveBeenCalled();
+    expect(narrateRun).toHaveBeenCalledWith(
+      {
+        raw_input_text: "look",
+        verdict: "approve",
+        reason_code: "APPROVED",
+        ref_from_judge: "Your choice will move the scene forward. Say what you want to do next.",
+        state_snapshot: {
+          completed_turn_count: 0,
+          current_turn_index: 1
+        }
+      }
+    );
+    expect(out.state.completed_turn_count).toBe(1);
+    expect(out.state).not.toHaveProperty("current_turn_index");
+  });
+
 });
