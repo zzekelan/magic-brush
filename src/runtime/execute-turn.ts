@@ -1,9 +1,10 @@
 import { buildJudgeContext } from "../context/build-judge-context";
 import type { JudgeContext } from "../context/build-judge-context";
 import type { NarrateContext } from "../context/build-narrate-context";
-import { runTurn } from "./pipeline";
+import { buildRuntimeStateSnapshot, normalizePersistedState } from "./normalize-state";
+import { runTurnPipeline } from "./pipeline";
 
-export async function runLiveTurn(input: {
+export async function executeTurn(input: {
   rawInputText: string;
   debug?: boolean;
   judgeTemperature?: number;
@@ -12,17 +13,19 @@ export async function runLiveTurn(input: {
   judgeAgent: { run: (ctx: JudgeContext) => Promise<unknown> };
   narrateAgent: { run: (ctx: NarrateContext) => Promise<unknown> };
 }) {
+  const persistedState = normalizePersistedState(input.state);
+  const runtimeStateSnapshot = buildRuntimeStateSnapshot(persistedState);
   const judgeContext = buildJudgeContext({
     rawInputText: input.rawInputText,
-    state: input.state
+    state: runtimeStateSnapshot
   });
 
-  return runTurn({
+  return runTurnPipeline({
     rawInputText: input.rawInputText,
     debug: input.debug,
     judge: () => input.judgeAgent.run(judgeContext),
     narrate: (ctx) => input.narrateAgent.run(ctx),
-    state: input.state,
+    state: persistedState,
     judgeTemperature: input.judgeTemperature,
     narrateTemperature: input.narrateTemperature
   });

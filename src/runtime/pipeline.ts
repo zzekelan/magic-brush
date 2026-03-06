@@ -1,12 +1,19 @@
 import { ZodError } from "zod";
-import { JudgeOutputSchema } from "../contracts/judge";
 import { NarrateOutputSchema } from "../contracts/narrate";
 import { SYSTEM_ERROR_CODES } from "../contracts/system-errors";
 import { buildNarrateContext, type NarrateContext } from "../context/build-narrate-context";
 import { commitApprovedInteraction, commitConversationContext } from "./commit";
-import { CONFIDENCE_THRESHOLD, shouldRetryJudge, shouldRetryNarrate } from "./retry-policy";
+import { runJudgeStage } from "./judge-stage";
+import {
+  buildRuntimeStateSnapshot,
+  normalizePersistedState,
+  readCompletedTurnCount
+} from "./normalize-state";
+import { shouldRetryNarrate } from "./retry-policy";
 
 type DebugStateSnapshot = {
+  completed_turn_count: number;
+  current_turn_index: number;
   state_keys: string[];
   approved_interaction_history_tail: Array<{
     raw_input_text: string;
@@ -144,21 +151,16 @@ function readApprovedInteractionTail(state: Record<string, unknown>) {
 }
 
 function buildStateSnapshot(state: Record<string, unknown>): DebugStateSnapshot {
+  const completedTurnCount = readCompletedTurnCount(state);
   return {
+    completed_turn_count: completedTurnCount,
+    current_turn_index: completedTurnCount + 1,
     state_keys: Object.keys(state).sort(),
     approved_interaction_history_tail: readApprovedInteractionTail(state)
   };
 }
 
-function readInteractionTurnCount(state: Record<string, unknown>): number {
-  const raw = state.interaction_turn_count;
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 1) {
-    return 1;
-  }
-  return Math.floor(raw);
-}
-
-export async function runTurn(deps: {
+export async function runTurnPipeline(deps: {
   rawInputText: string;
   debug?: boolean;
   judge: () => Promise<unknown>;
@@ -167,6 +169,8 @@ export async function runTurn(deps: {
   judgeTemperature?: number;
   narrateTemperature?: number;
 }): Promise<TurnResult> {
+  const persistedState = normalizePersistedState(deps.state);
+  const runtimeStateSnapshot = buildRuntimeStateSnapshot(persistedState);
   const debugEnabled = deps.debug === true;
   const judgeTemperature = deps.judgeTemperature ?? 0;
   const narrateTemperature = deps.narrateTemperature ?? 1;
@@ -179,7 +183,7 @@ export async function runTurn(deps: {
 
   const judgeContextSnapshot: TurnDebug["judge_context_snapshot"] = {
     raw_input_text: deps.rawInputText,
-    ...buildStateSnapshot(deps.state)
+    ...buildStateSnapshot(runtimeStateSnapshot)
   };
 
   const withDebug = (
@@ -214,96 +218,42 @@ export async function runTurn(deps: {
     };
   };
 
-  let attempt = 0;
-  let judgeResult: ReturnType<typeof JudgeOutputSchema.parse> | null = null;
+  const judgeStage = await runJudgeStage({
+    judge: deps.judge
+  });
+  judgeAttempts = judgeStage.attempts;
+  judgeUsageTotalTokens = judgeStage.usage_total_tokens;
 
-  while (judgeResult === null) {
-    try {
-      judgeAttempts += 1;
-      const normalized = normalizeAgentRunResult(await deps.judge());
-      judgeUsageTotalTokens += normalized.usage_total_tokens;
-      const candidate = JudgeOutputSchema.parse(normalized.data);
-      const needRetry = shouldRetryJudge({
-        confidence: candidate.confidence,
-        schemaValid: true,
-        attempt
-      });
-
-      if (needRetry) {
-        attempt += 1;
-        continue;
+  if (!judgeStage.ok) {
+    return withDebug(
+      systemFallback(persistedState, judgeStage.system_error_code),
+      {
+        stage: "judge",
+        system_error_code: judgeStage.system_error_code,
+        system_error_detail: judgeStage.system_error_detail
       }
-
-      if (candidate.confidence < CONFIDENCE_THRESHOLD) {
-        return withDebug(
-          systemFallback(deps.state, SYSTEM_ERROR_CODES.JUDGE_LOW_CONFIDENCE),
-          {
-            stage: "judge",
-            system_error_code: SYSTEM_ERROR_CODES.JUDGE_LOW_CONFIDENCE
-          }
-        );
-      }
-
-      judgeResultSnapshot = {
-        verdict: candidate.verdict,
-        reason_code: candidate.reason_code,
-        confidence: candidate.confidence,
-        ref_from_judge: candidate.ref_from_judge
-      };
-      judgeResult = candidate;
-    } catch (error) {
-      const needRetry = shouldRetryJudge({
-        confidence: 0,
-        schemaValid: false,
-        attempt
-      });
-
-      if (needRetry) {
-        attempt += 1;
-        continue;
-      }
-
-      if (error instanceof ZodError) {
-        const detail = summarizeZodError(error);
-        return withDebug(
-          systemFallback(
-            deps.state,
-            SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID
-          ),
-          {
-            stage: "judge",
-            system_error_code: SYSTEM_ERROR_CODES.JUDGE_SCHEMA_INVALID,
-            system_error_detail: detail
-          }
-        );
-      }
-
-      const detail = extractErrorDetail(error);
-      return withDebug(
-          systemFallback(
-            deps.state,
-            SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED
-          ),
-        {
-          stage: "judge",
-          system_error_code: SYSTEM_ERROR_CODES.JUDGE_CALL_FAILED,
-          system_error_detail: detail
-        }
-      );
-    }
+    );
   }
+
+  const judgeResult = judgeStage.output;
+  judgeResultSnapshot = {
+    verdict: judgeResult.verdict,
+    reason_code: judgeResult.reason_code,
+    confidence: judgeResult.confidence,
+    ref_from_judge: judgeResult.ref_from_judge
+  };
 
   const narrateContext = buildNarrateContext({
     rawInputText: deps.rawInputText,
     judge: judgeResult,
-    state: deps.state
+    state: runtimeStateSnapshot
   });
   narrateContextSnapshot = {
     raw_input_text: narrateContext.raw_input_text,
     verdict: narrateContext.verdict,
     reason_code: narrateContext.reason_code,
     ref_from_judge: narrateContext.ref_from_judge,
-    ...buildStateSnapshot(deps.state)
+    ...buildStateSnapshot(runtimeStateSnapshot)
   };
 
   let narrateAttempt = 0;
@@ -316,11 +266,11 @@ export async function runTurn(deps: {
       const stateAfterApprovedCommit =
         judgeResult.verdict === "approve"
           ? commitApprovedInteraction({
-              state: deps.state,
+              state: persistedState,
               rawInputText: deps.rawInputText,
               narrationText: narrateResult.narration_text
             })
-          : deps.state;
+          : persistedState;
       const nextStateWithContext = commitConversationContext({
         state: stateAfterApprovedCommit,
         rawInputText: deps.rawInputText,
@@ -330,7 +280,7 @@ export async function runTurn(deps: {
       });
       const nextState = {
         ...nextStateWithContext,
-        interaction_turn_count: readInteractionTurnCount(deps.state) + 1
+        completed_turn_count: readCompletedTurnCount(persistedState) + 1
       };
 
       return withDebug({
@@ -351,7 +301,7 @@ export async function runTurn(deps: {
         const detail = summarizeZodError(error);
         return withDebug(
           systemFallback(
-            deps.state,
+            persistedState,
             SYSTEM_ERROR_CODES.NARRATE_SCHEMA_INVALID
           ),
           {
@@ -365,7 +315,7 @@ export async function runTurn(deps: {
       const detail = extractErrorDetail(error);
       return withDebug(
           systemFallback(
-            deps.state,
+            persistedState,
             SYSTEM_ERROR_CODES.NARRATE_CALL_FAILED
           ),
         {

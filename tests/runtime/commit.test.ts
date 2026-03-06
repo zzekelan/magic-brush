@@ -76,7 +76,7 @@ describe("commitConversationContext", () => {
             raw_input_text: "look-1",
             narration_text: "You scan room 1.",
             verdict: "approve",
-            reason_code: "RULE_CONFLICT"
+            reason_code: "APPROVED"
           },
           {
             raw_input_text: "look-2",
@@ -88,7 +88,7 @@ describe("commitConversationContext", () => {
             raw_input_text: "look-3",
             narration_text: "You scan room 3.",
             verdict: "approve",
-            reason_code: "RULE_CONFLICT"
+            reason_code: "APPROVED"
           },
           {
             raw_input_text: "look-4",
@@ -100,7 +100,7 @@ describe("commitConversationContext", () => {
             raw_input_text: "look-5",
             narration_text: "You scan room 5.",
             verdict: "approve",
-            reason_code: "RULE_CONFLICT"
+            reason_code: "APPROVED"
           },
           {
             raw_input_text: "look-6",
@@ -113,7 +113,7 @@ describe("commitConversationContext", () => {
       rawInputText: "search fountain",
       narrationText: "You notice a glint below the moss.",
       verdict: "approve",
-      reasonCode: "RULE_CONFLICT"
+      reasonCode: "APPROVED"
     });
 
     expect(out.conversation_context).toEqual([
@@ -127,7 +127,7 @@ describe("commitConversationContext", () => {
         raw_input_text: "look-3",
         narration_text: "You scan room 3.",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       },
       {
         raw_input_text: "look-4",
@@ -139,7 +139,7 @@ describe("commitConversationContext", () => {
         raw_input_text: "look-5",
         narration_text: "You scan room 5.",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       },
       {
         raw_input_text: "look-6",
@@ -151,7 +151,7 @@ describe("commitConversationContext", () => {
         raw_input_text: "search fountain",
         narration_text: "You notice a glint below the moss.",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       }
     ]);
   });
@@ -160,7 +160,7 @@ describe("commitConversationContext", () => {
     const out = commitConversationContext({
       state: {
         conversation_context: [
-          { raw_input_text: "look", narration_text: "ok", verdict: "approve", reason_code: "RULE_CONFLICT" },
+          { raw_input_text: "look", narration_text: "ok", verdict: "approve", reason_code: "APPROVED" },
           { raw_input_text: "bad-only" },
           "oops"
         ]
@@ -176,7 +176,7 @@ describe("commitConversationContext", () => {
         raw_input_text: "look",
         narration_text: "ok",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       },
       {
         raw_input_text: "open gate",

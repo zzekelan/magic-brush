@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runTurn } from "../../src/runtime/pipeline";
+import { runTurnPipeline } from "../../src/runtime/pipeline";
 
 describe("runTurn debug channel", () => {
   it("omits debug payload when debug=false", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "look around",
       debug: false,
       judge: async () => ({
@@ -17,23 +17,24 @@ describe("runTurn debug channel", () => {
         narration_text: "The gate remains shut.",
         reference: "Search nearby."
       }),
-      state: { interaction_turn_count: 1 },
+      state: { completed_turn_count: 0 },
       judgeTemperature: 0,
       narrateTemperature: 1
     });
 
     expect(out.debug).toBeUndefined();
-    expect(out.state.interaction_turn_count).toBe(2);
+    expect(out.state.completed_turn_count).toBe(1);
+    expect(out.state).not.toHaveProperty("current_turn_index");
   });
 
   it("includes debug.llm payload with retry-accumulated usage when debug=true", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       debug: true,
       judge: async () => ({
         data: {
           verdict: "approve",
-          reason_code: "RULE_CONFLICT",
+          reason_code: "APPROVED",
           internal_reason: "ok",
           confidence: 0.95,
           ref_from_judge: "Proceed."
@@ -44,7 +45,7 @@ describe("runTurn debug channel", () => {
         data: {},
         usage_total_tokens: 70
       }),
-      state: { hp: 10, interaction_turn_count: 2, approved_interaction_history: [] },
+      state: { hp: 10, completed_turn_count: 1, approved_interaction_history: [] },
       judgeTemperature: 0,
       narrateTemperature: 1
     });
@@ -67,13 +68,18 @@ describe("runTurn debug channel", () => {
     expect(out.debug).toEqual(
       expect.objectContaining({
         judge_context_snapshot: expect.objectContaining({
-          raw_input_text: "open gate"
+          raw_input_text: "open gate",
+          completed_turn_count: 1,
+          current_turn_index: 2
         }),
         narrate_context_snapshot: expect.objectContaining({
-          raw_input_text: "open gate"
+          raw_input_text: "open gate",
+          completed_turn_count: 1,
+          current_turn_index: 2
         })
       })
     );
-    expect(out.state.interaction_turn_count).toBe(2);
+    expect(out.state.completed_turn_count).toBe(1);
+    expect(out.state).not.toHaveProperty("current_turn_index");
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { runLiveTurn } from "../../src/runtime/run-live-turn";
+import { executeTurn } from "../../src/runtime/execute-turn";
 
-describe("runLiveTurn", () => {
+describe("executeTurn", () => {
   it("passes context and reports debug.llm stats from provider-style agent output", async () => {
     const judgeRun = vi.fn().mockResolvedValue({
       data: {
@@ -21,11 +21,11 @@ describe("runLiveTurn", () => {
       usage_total_tokens: 30
     });
     const state = {
-      interaction_turn_count: 2,
+      completed_turn_count: 1,
       approved_interaction_history: [{ raw_input_text: "look", narration_text: "Earlier narration." }]
     };
 
-    const out = await runLiveTurn({
+    const out = await executeTurn({
       rawInputText: "open gate",
       debug: true,
       judgeTemperature: 0.1,
@@ -37,12 +37,24 @@ describe("runLiveTurn", () => {
 
     expect(judgeRun).toHaveBeenCalledWith({
       raw_input_text: "open gate",
-      state_snapshot: state
+      state_snapshot: {
+        completed_turn_count: 1,
+        current_turn_index: 2,
+        approved_interaction_history: [
+          { raw_input_text: "look", narration_text: "Earlier narration." }
+        ]
+      }
     });
     expect(narrateRun).toHaveBeenCalledWith(
       expect.objectContaining({
         raw_input_text: "open gate",
-        state_snapshot: state
+        state_snapshot: {
+          completed_turn_count: 1,
+          current_turn_index: 2,
+          approved_interaction_history: [
+            { raw_input_text: "look", narration_text: "Earlier narration." }
+          ]
+        }
       })
     );
     expect(out.debug?.llm).toEqual({
@@ -50,6 +62,9 @@ describe("runLiveTurn", () => {
       narrate: { temperature: 1.3, attempts: 1, usage_total_tokens: 30 },
       usage_total_tokens: 150
     });
-    expect(out.state.interaction_turn_count).toBe(3);
+    expect(out.state.completed_turn_count).toBe(2);
+    expect(out.state).not.toHaveProperty("interaction_turn_count");
+    expect(out.state).not.toHaveProperty("current_turn_index");
   });
+
 });

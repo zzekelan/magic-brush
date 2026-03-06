@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runTurn } from "../../src/runtime/pipeline";
+import { runTurnPipeline } from "../../src/runtime/pipeline";
 
 describe("system error channel", () => {
   it("returns safe fallback on narrate schema failures", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
@@ -25,22 +25,22 @@ describe("system error channel", () => {
   it("does not mutate state when narrate fails", async () => {
     const original = {
       hp: 10,
-      interaction_turn_count: 2,
+      completed_turn_count: 1,
       approved_interaction_history: [{ raw_input_text: "look", narration_text: "n1" }],
       conversation_context: [
         {
           raw_input_text: "look",
           narration_text: "n1",
           verdict: "approve",
-          reason_code: "RULE_CONFLICT"
+          reason_code: "APPROVED"
         }
       ]
     };
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "approve",
-        reason_code: "RULE_CONFLICT",
+        reason_code: "APPROVED",
         internal_reason: "ok",
         confidence: 0.95,
         ref_from_judge: "Proceed."
@@ -58,13 +58,13 @@ describe("system error channel", () => {
   });
 
   it("passes through judge call failure detail", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "look",
       judge: async () => {
         throw new Error("ServiceUnavailable request_id=abc123");
       },
       narrate: async () => ({ narration_text: "unused", reference: "unused" }),
-      state: {}
+      state: { completed_turn_count: 1 }
     });
 
     expect(out.system_error_code).toBe("JUDGE_CALL_FAILED");
@@ -74,7 +74,7 @@ describe("system error channel", () => {
   it("rejects extra state_patch on reject in strict mode", async () => {
     let judgeCalls = 0;
     let narrateCalls = 0;
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => {
         judgeCalls += 1;
@@ -94,13 +94,13 @@ describe("system error channel", () => {
           reference: "Search the fountain for a key."
         };
       },
-      state: { hp: 10 }
+      state: { hp: 10, completed_turn_count: 1 }
     });
 
     expect(judgeCalls).toBe(4);
     expect(narrateCalls).toBe(0);
     expect(out.system_error_code).toBe("JUDGE_SCHEMA_INVALID");
     expect(out.system_error_detail).toBeUndefined();
-    expect(out.state).toEqual({ hp: 10 });
+    expect(out.state).toEqual({ hp: 10, completed_turn_count: 1 });
   });
 });

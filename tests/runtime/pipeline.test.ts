@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runTurn } from "../../src/runtime/pipeline";
+import { runTurnPipeline } from "../../src/runtime/pipeline";
 
 describe("runTurn", () => {
   it("records reject turn in conversation_context without mutating approved history", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "reject",
@@ -18,7 +18,7 @@ describe("runTurn", () => {
       }),
       state: {
         hp: 10,
-        interaction_turn_count: 2,
+        completed_turn_count: 1,
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "Old approved narration." }
         ],
@@ -27,7 +27,7 @@ describe("runTurn", () => {
             raw_input_text: "inspect gate",
             narration_text: "The hinges are rusted.",
             verdict: "approve",
-            reason_code: "RULE_CONFLICT"
+            reason_code: "APPROVED"
           }
         ]
       }
@@ -37,13 +37,15 @@ describe("runTurn", () => {
     expect(out.state.approved_interaction_history).toEqual([
       { raw_input_text: "look", narration_text: "Old approved narration." }
     ]);
-    expect(out.state.interaction_turn_count).toBe(3);
+    expect(out.state.completed_turn_count).toBe(2);
+    expect(out.state).not.toHaveProperty("current_turn_index");
+    expect(out.state).not.toHaveProperty("interaction_turn_count");
     expect(out.state.conversation_context).toEqual([
       {
         raw_input_text: "inspect gate",
         narration_text: "The hinges are rusted.",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       },
       {
         raw_input_text: "open gate",
@@ -56,11 +58,11 @@ describe("runTurn", () => {
   });
 
   it("updates approved history and conversation_context on approve+narrate success", async () => {
-    const out = await runTurn({
+    const out = await runTurnPipeline({
       rawInputText: "open gate",
       judge: async () => ({
         verdict: "approve",
-        reason_code: "RULE_CONFLICT",
+        reason_code: "APPROVED",
         internal_reason: "ok",
         confidence: 0.95,
         ref_from_judge: "Proceed."
@@ -71,7 +73,7 @@ describe("runTurn", () => {
       }),
       state: {
         hp: 10,
-        interaction_turn_count: 2,
+        completed_turn_count: 1,
         approved_interaction_history: [
           { raw_input_text: "look", narration_text: "n1" },
           { raw_input_text: "inspect gate", narration_text: "n2" }
@@ -81,7 +83,7 @@ describe("runTurn", () => {
             raw_input_text: "inspect gate",
             narration_text: "n2",
             verdict: "approve",
-            reason_code: "RULE_CONFLICT"
+            reason_code: "APPROVED"
           }
         ]
       }
@@ -94,19 +96,21 @@ describe("runTurn", () => {
       raw_input_text: "open gate",
       narration_text: "You push the heavy gate open."
     });
-    expect(out.state.interaction_turn_count).toBe(3);
+    expect(out.state.completed_turn_count).toBe(2);
+    expect(out.state).not.toHaveProperty("current_turn_index");
+    expect(out.state).not.toHaveProperty("interaction_turn_count");
     expect(out.state.conversation_context).toEqual([
       {
         raw_input_text: "inspect gate",
         narration_text: "n2",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       },
       {
         raw_input_text: "open gate",
         narration_text: "You push the heavy gate open.",
         verdict: "approve",
-        reason_code: "RULE_CONFLICT"
+        reason_code: "APPROVED"
       }
     ]);
     expect(out.reference).toBe("Step into the courtyard.");

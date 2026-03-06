@@ -74,7 +74,7 @@ export async function runReplSession(input: {
 
 async function main() {
   const { debug } = parseReplArgs(process.argv.slice(2));
-  const runTurnExecutor = createLiveTurnExecutor();
+  const runtime = createLiveTurnExecutor();
   const rl = createInterface({ input, output });
 
   try {
@@ -83,7 +83,7 @@ async function main() {
       ask: (prompt) => rl.question(prompt),
       print: (line) => console.log(line),
       runTurn: ({ rawInputText, debug: turnDebug, state }) =>
-        runTurnExecutor({
+        runtime.executeTurn({
           rawInputText,
           debug: turnDebug,
           state
