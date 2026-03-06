@@ -14,6 +14,30 @@ describe("JudgeOutputSchema", () => {
     expect(parsed.ref_from_judge).toBe("Try checking the nearby altar.");
   });
 
+  it("rejects approve payload when reason_code is not APPROVED", () => {
+    expect(() =>
+      JudgeOutputSchema.parse({
+        verdict: "approve",
+        reason_code: "MISSING_PREREQ",
+        internal_reason: "ok",
+        confidence: 0.9,
+        ref_from_judge: "Try another action."
+      })
+    ).toThrow();
+  });
+
+  it("rejects reject payload when reason_code is APPROVED", () => {
+    expect(() =>
+      JudgeOutputSchema.parse({
+        verdict: "reject",
+        reason_code: "APPROVED",
+        internal_reason: "missing key",
+        confidence: 0.9,
+        ref_from_judge: "Find the key first."
+      })
+    ).toThrow();
+  });
+
   it("rejects legacy state_patch field on approve payload", () => {
     expect(() =>
       JudgeOutputSchema.parse({
