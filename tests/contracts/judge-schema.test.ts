@@ -5,7 +5,7 @@ describe("JudgeOutputSchema", () => {
   it("accepts approve payload without state_patch", () => {
     const parsed = JudgeOutputSchema.parse({
       verdict: "approve",
-      reason_code: "RULE_CONFLICT",
+      reason_code: "APPROVED",
       internal_reason: "ok",
       confidence: 0.9,
       ref_from_judge: "Try checking the nearby altar."
@@ -18,7 +18,7 @@ describe("JudgeOutputSchema", () => {
     expect(() =>
       JudgeOutputSchema.parse({
         verdict: "approve",
-        reason_code: "RULE_CONFLICT",
+        reason_code: "APPROVED",
         internal_reason: "ok",
         confidence: 0.9,
         ref_from_judge: "Try another action.",
