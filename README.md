@@ -2,21 +2,24 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Magic Brush is an LLM-powered immersive interactive fiction runtime.
+Magic Brush is an LLM-powered generative world interactive fiction runtime.
 
-> Where your words land, the world starts growing.
+> Each action does more than produce a reply.  
+> It keeps creating the world as you play.
 
-> Start with one action and shape your world.  
-> The story keeps evolving based on your choices.
+Built around a structured `Judge -> Narrate` turn engine, Magic Brush is designed for immersive web play and developer-facing runtime integration.
 
 ## Core Features
 
+- Generative-world play: each action can reshape a shared world across turns
 - Two-stage turn engine: `Judge -> Narrate` with structured JSON output
-- Stateful sessions with `/reset` and `/exit`
+- Stateful sessions with onboarding, `/reset`, and `/exit` in Web and REPL flows
+- Recommended full experience: Web mode, plus CLI REPL and CLI single-turn runtime entry points
 - OpenAI-compatible provider interface (Chat Completions compatible)
-- Multiple entry points: Web / CLI / REPL
 
 ## Recommended: Web Mode
+
+This is the closest thing to the fully immersive text-generative-world experience.
 
 1. Install dependencies
 
@@ -57,7 +60,9 @@ bun run dev:api
 - Frontend: `http://localhost:5173`
 - API: `http://localhost:8787`
 
-## CLI Mode (Optional)
+## Other Entry Points
+
+CLI single turn is useful for direct runtime calls without session onboarding:
 
 ```bash
 cp .env.example .env
@@ -68,6 +73,11 @@ Optional:
 
 ```bash
 bun run turn --debug "look around"
+```
+
+CLI REPL keeps a session open and includes onboarding, `/reset`, and `/exit`:
+
+```bash
 bun run turn:repl
 ```
 

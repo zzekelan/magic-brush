@@ -63,16 +63,19 @@ State commit rules:
   - append only when `verdict=approve` and narrate succeeds
 - `conversation_context` (max 6):
   - append on every successful narrate (approve or reject)
-- `interaction_turn_count`:
-  - initialized to `1` after onboarding completion
+- `completed_turn_count`:
+  - initialized to `0` after onboarding completion
   - incremented by `+1` only after successful narrate commit
-- If runtime returns system fallback, state is unchanged
+- `current_turn_index`:
+  - derived at runtime/debug time as `completed_turn_count + 1`
+  - never persisted in `next_state`
+- If runtime returns system fallback, gameplay state is not advanced; persisted state is returned after normalization
 
 Early-turn guidance behavior:
 
-- Judge prompt uses `state_snapshot.interaction_turn_count` and when `<= 2` it should prefer approve unless clear safety risk.
+- Judge prompt uses `state_snapshot.current_turn_index` and when `<= 2` it should prefer approve unless clear contradiction, unfillable prerequisite, or safety risk exists.
 - If judge verdict is reject, `ref_from_judge` must include one concrete immediately executable next action.
-- Narrate prompt uses `state_snapshot.interaction_turn_count`; when `<= 2` and input is low-information, both `narration_text` and `reference` must provide actionable direction.
+- Narrate prompt uses `state_snapshot.current_turn_index`; when `<= 2` and input is low-information, both `narration_text` and `reference` must provide actionable direction.
 - In this early-turn low-information case, `reference` should provide 2-4 concise executable options.
 
 System fallback output:
@@ -86,6 +89,12 @@ System fallback output:
   - `NARRATE_SCHEMA_INVALID`
   - `NARRATE_CALL_FAILED`
 
+Runtime entry points:
+
+- `executeTurn` (`src/runtime/execute-turn.ts`): full turn execution (judge + narrate + commit)
+- `executeJudge` (`src/runtime/execute-judge.ts`): judge-only execution for direct runtime callers, tests, or tooling
+- `runTurnPipeline` (`src/runtime/pipeline.ts`): shared low-level turn pipeline
+
 ### 2) Interaction Step Engine (`src/interaction/step-engine.ts`)
 
 Used by REPL and API. This layer handles commands + onboarding before calling runtime turn.
@@ -98,7 +107,7 @@ Order:
 4. onboarding gate:
    - step 1: collect `role_profile`
    - step 2: collect `world_background`
-   - then mark onboarding complete and initialize `interaction_turn_count=1`
+   - once collected, mark onboarding complete and initialize `completed_turn_count=0`
 5. once onboarding complete -> execute runtime turn
 
 Response kinds:
@@ -224,7 +233,7 @@ Request:
 {
   "raw_input_text": "look around",
   "state_snapshot": {
-    "interaction_turn_count": 2
+    "completed_turn_count": 1
   },
   "debug": false
 }
@@ -257,13 +266,13 @@ Successful response examples:
 {
   "kind": "turn_result",
   "next_state": {
-    "interaction_turn_count": 3
+    "completed_turn_count": 2
   },
   "output": {
     "narration_text": "You stand in the city center.",
     "reference": "Observe nearby streets.",
     "state": {
-      "interaction_turn_count": 3
+      "completed_turn_count": 2
     }
   }
 }
