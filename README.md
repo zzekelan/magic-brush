@@ -17,6 +17,14 @@ Built around a structured `Judge -> Narrate` turn engine, Magic Brush is designe
 - Recommended full experience: Web mode, plus CLI REPL and CLI single-turn runtime entry points
 - OpenAI-compatible provider interface (Chat Completions compatible)
 
+## Demo Video
+
+<video controls preload="metadata" src="assets/demo-video.mp4">
+  Your browser does not support embedded video. Download it from <a href="assets/demo-video.mp4">assets/demo-video.mp4</a>.
+</video>
+
+Direct link: [assets/demo-video.mp4](assets/demo-video.mp4)
+
 ## Recommended: Web Mode
 
 This is the closest thing to the fully immersive text-generative-world experience.

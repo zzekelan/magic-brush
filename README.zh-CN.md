@@ -4,7 +4,7 @@
 
 Magic Brush 是一个由 LLM 驱动的生成式世界互动叙事运行时。
 
-> 每次行动都不只是得到一次回应，  
+> 每次行动都不仅是得到一次回应，  
 > 而是在持续创造这个世界。  
 
 Magic Brush 基于结构化的 `Judge -> Narrate` 双阶段引擎构建，既面向 Web 沉浸式文字体验，也面向开发者集成与调试。
@@ -16,6 +16,14 @@ Magic Brush 基于结构化的 `Judge -> Narrate` 双阶段引擎构建，既面
 - Web 和 REPL 具备带 onboarding 的持续会话，并支持 `/reset`、`/exit`
 - 推荐完整体验方式：Web；同时提供 CLI REPL 与单轮 CLI runtime 入口
 - OpenAI 兼容接口（可接入兼容 Chat Completions 的服务）
+
+## 演示视频
+
+<video controls preload="metadata" src="assets/demo-video.mp4">
+  你的浏览器不支持嵌入式视频。可以直接下载 <a href="assets/demo-video.mp4">assets/demo-video.mp4</a>。
+</video>
+
+直链：[assets/demo-video.mp4](assets/demo-video.mp4)
 
 ## 推荐体验方式：Web
 
