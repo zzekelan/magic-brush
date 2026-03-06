@@ -38,7 +38,7 @@ describe("interaction parity matrix", () => {
     expect(runTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         state: expect.objectContaining({
-          interaction_turn_count: 1
+          completed_turn_count: 0
         })
       })
     );

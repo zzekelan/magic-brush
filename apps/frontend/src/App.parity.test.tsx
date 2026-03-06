@@ -9,7 +9,10 @@ function jsonResponse(body: unknown) {
   });
 }
 
-async function startMode(modeName: "Explore World" | "Developer Mode") {
+async function startMode(
+  modeName: "Explore World" | "Developer Mode" | "探索世界" | "开发者模式",
+  lang: "en" | "zh" = "en"
+) {
   window.matchMedia = (query: string): MediaQueryList =>
     ({
       matches: query.includes("prefers-reduced-motion"),
@@ -24,12 +27,15 @@ async function startMode(modeName: "Explore World" | "Developer Mode") {
 
   const { default: App } = await import("./App");
   render(<App />);
-  await waitFor(
-    () => {
-      expect(screen.getByRole("button", { name: modeName })).toBeInTheDocument();
-    },
-    { timeout: 7000 }
-  );
+  if (lang === "zh") {
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "中文" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "中文" }));
+  }
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: modeName })).toBeInTheDocument();
+  }, { timeout: 7000 });
 
   fireEvent.click(screen.getByRole("button", { name: modeName }));
   await waitFor(() => {
@@ -87,7 +93,8 @@ describe("frontend parity critical paths", () => {
               step: "world_background",
               role_profile: "A ranger",
               world_background: "Steam city"
-            }
+            },
+            completed_turn_count: 0
           }
         })
       )
@@ -102,7 +109,8 @@ describe("frontend parity critical paths", () => {
               world_background: "Steam city"
             },
             approved_interaction_history: [],
-            conversation_context: []
+            conversation_context: [],
+            completed_turn_count: 1
           },
           output: {
             narration_text: "You stand in the city center.",
@@ -112,10 +120,11 @@ describe("frontend parity critical paths", () => {
                 completed: true,
                 step: "world_background",
                 role_profile: "A ranger",
-                world_background: "Steam city"
+              world_background: "Steam city"
               },
               approved_interaction_history: [],
-              conversation_context: []
+              conversation_context: [],
+              completed_turn_count: 1
             }
           }
         })
@@ -217,7 +226,8 @@ describe("frontend parity critical paths", () => {
               step: "world_background",
               role_profile: "A mage",
               world_background: "Neon district"
-            }
+            },
+            completed_turn_count: 0
           }
         })
       )
@@ -232,7 +242,8 @@ describe("frontend parity critical paths", () => {
               world_background: "Neon district"
             },
             approved_interaction_history: [],
-            conversation_context: []
+            conversation_context: [],
+            completed_turn_count: 1
           },
           output: {
             narration_text: "You step into the neon district.",
@@ -242,10 +253,11 @@ describe("frontend parity critical paths", () => {
                 completed: true,
                 step: "world_background",
                 role_profile: "A mage",
-                world_background: "Neon district"
+              world_background: "Neon district"
               },
               approved_interaction_history: [],
-              conversation_context: []
+              conversation_context: [],
+              completed_turn_count: 1
             },
             debug: { judge_ms: 12 }
           },
@@ -323,6 +335,53 @@ describe("frontend parity critical paths", () => {
     submitInput("/reset");
     await waitFor(() => {
       expect(screen.getByText("Session state reset.")).toBeInTheDocument();
+    });
+  });
+
+  it("localizes onboarding completion ack from bilingual payload in Chinese mode", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          kind: "onboarding_ack",
+          text: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_role_recorded),
+          next_state: {
+            onboarding: {
+              completed: false,
+              step: "world_background",
+              role_profile: "游侠"
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          kind: "onboarding_ack",
+          text: renderBilingualMessage(INTERACTION_MESSAGES.onboarding_ack_world_recorded_complete),
+          next_state: {
+            onboarding: {
+              completed: true,
+              step: "world_background",
+              role_profile: "游侠",
+              world_background: "蒸汽朋克废土"
+            },
+            completed_turn_count: 0
+          }
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await startMode("探索世界", "zh");
+
+    submitInput("游侠");
+    await waitFor(() => {
+      expect(screen.getByText("已记录角色设定。")).toBeInTheDocument();
+      expect(screen.getByText("请先定义你的世界背景。")).toBeInTheDocument();
+    });
+
+    submitInput("蒸汽朋克废土");
+    await waitFor(() => {
+      expect(screen.getByText("已记录世界背景。设定完成，你可以开始行动。")).toBeInTheDocument();
     });
   });
 });

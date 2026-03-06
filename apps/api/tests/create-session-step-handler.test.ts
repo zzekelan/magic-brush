@@ -59,6 +59,48 @@ describe("createSessionStepHandler", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
+  it("completes onboarding after world_background without calling runJudge", async () => {
+    const runTurn = vi.fn();
+    const handler = createSessionStepHandler({
+      runTurn,
+      allowedOrigins: ["http://localhost:5173"]
+    });
+
+    const req = new Request("http://localhost:8787/api/session/step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        raw_input_text: "蒸汽朋克废土",
+        state_snapshot: {
+          onboarding: {
+            completed: false,
+            step: "world_background",
+            role_profile: "我是游侠"
+          }
+        }
+      })
+    });
+
+    const res = await handler(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(runTurn).not.toHaveBeenCalled();
+    expect(body).toEqual({
+      kind: "onboarding_ack",
+      text: "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。",
+      next_state: {
+        onboarding: {
+          completed: true,
+          step: "world_background",
+          role_profile: "我是游侠",
+          world_background: "蒸汽朋克废土"
+        },
+        completed_turn_count: 0
+      }
+    });
+  });
+
   it("returns noop and keeps state for whitespace input", async () => {
     const runTurn = vi.fn();
     const handler = createSessionStepHandler({

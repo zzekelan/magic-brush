@@ -1,6 +1,6 @@
 import type { OnboardingStep } from "./types";
 
-type OnboardingState = {
+export type OnboardingState = {
   completed: boolean;
   step: OnboardingStep;
   role_profile?: string;
@@ -20,7 +20,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readOnboarding(state: Record<string, unknown>): OnboardingState | undefined {
+export function readOnboarding(state: Record<string, unknown>): OnboardingState | undefined {
   const raw = state.onboarding;
   if (!isRecord(raw)) {
     return undefined;
@@ -47,6 +47,23 @@ function withOnboarding(
   return {
     ...state,
     onboarding
+  };
+}
+
+function withCompletedTurnCount(
+  state: Record<string, unknown>,
+  completedTurnCount: number
+): Record<string, unknown> {
+  const {
+    completed_turn_count: _ignoredCompletedTurnCount,
+    current_turn_index: _ignoredCurrentTurnIndex,
+    interaction_turn_count: _ignoredLegacyInteractionTurnCount,
+    ...rest
+  } = state;
+
+  return {
+    ...rest,
+    completed_turn_count: completedTurnCount
   };
 }
 
@@ -105,16 +122,15 @@ export function applyOnboardingInput(
   }
 
   if (current?.step === "world_background") {
+    const onboardingCompletedState = withOnboarding(state, {
+      completed: true,
+      step: "world_background",
+      role_profile: current.role_profile,
+      world_background: text
+    });
+
     return {
-      state: {
-        ...withOnboarding(state, {
-          completed: true,
-          step: "world_background",
-          role_profile: current.role_profile,
-          world_background: text
-        }),
-        interaction_turn_count: 1
-      },
+      state: withCompletedTurnCount(onboardingCompletedState, 0),
       messageKey: "onboarding_ack_world_recorded_complete"
     };
   }

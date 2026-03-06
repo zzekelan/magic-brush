@@ -75,8 +75,9 @@ describe("stepInteraction", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
-  it("collects role then world background before allowing turn execution", async () => {
+  it("completes onboarding after world background without calling runJudge", async () => {
     const runTurn = vi.fn();
+    const runJudge = vi.fn();
 
     const step1 = await stepInteraction({
       rawInputText: "我是游侠",
@@ -86,7 +87,8 @@ describe("stepInteraction", () => {
     const step2 = await stepInteraction({
       rawInputText: "蒸汽朋克废土",
       state: step1.nextState,
-      runTurn
+      runTurn,
+      runJudge
     });
 
     expect(step1.kind).toBe("onboarding_ack");
@@ -105,16 +107,60 @@ describe("stepInteraction", () => {
         "World background recorded. Setup complete, you can start taking actions.\n已记录世界背景。设定完成，你可以开始行动。"
       );
     }
-    expect(step2.nextState).toEqual({
-      onboarding: {
-        completed: true,
-        step: "world_background",
-        role_profile: "我是游侠",
-        world_background: "蒸汽朋克废土"
-      },
-      interaction_turn_count: 1
+    expect(step2.nextState.onboarding).toEqual({
+      completed: true,
+      step: "world_background",
+      role_profile: "我是游侠",
+      world_background: "蒸汽朋克废土"
     });
+    expect(step2.nextState.completed_turn_count).toBe(0);
+    expect(step2.nextState).not.toHaveProperty("interaction_turn_count");
+    expect(runJudge).not.toHaveBeenCalled();
     expect(runTurn).not.toHaveBeenCalled();
+  });
+
+  it("runs turn immediately after onboarding completion", async () => {
+    const runTurn = vi.fn().mockResolvedValue({
+      narration_text: "你看到齿轮塔投下阴影。",
+      reference: "继续观察街道。",
+      state: {
+        onboarding: {
+          completed: true,
+          step: "world_background",
+          role_profile: "我是游侠",
+          world_background: "蒸汽朋克废土"
+        },
+        completed_turn_count: 1
+      }
+    });
+
+    const step1 = await stepInteraction({
+      rawInputText: "我是游侠",
+      state: {},
+      runTurn
+    });
+    const step2 = await stepInteraction({
+      rawInputText: "蒸汽朋克废土",
+      state: step1.nextState,
+      runTurn
+    });
+    const out = await stepInteraction({
+      rawInputText: "我推开酒馆后门看看外面",
+      state: step2.nextState,
+      runTurn
+    });
+
+    expect(runTurn).toHaveBeenCalledWith({
+      rawInputText: "我推开酒馆后门看看外面",
+      state: step2.nextState,
+      debug: undefined
+    });
+    expect(out.kind).toBe("turn_result");
+    if (out.kind === "turn_result") {
+      expect(out.output.narration_text).toBe("你看到齿轮塔投下阴影。");
+      expect(out.output.reference).toBe("继续观察街道。");
+      expect(out.nextState.completed_turn_count).toBe(1);
+    }
   });
 
   it("runs turn after onboarding completion and forwards args", async () => {
