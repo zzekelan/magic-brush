@@ -302,10 +302,16 @@ When `debug=false`, `debug` is omitted.
 
 Judge `reason_code` enum:
 
+- `APPROVED`
 - `RULE_CONFLICT`
 - `MISSING_PREREQ`
 - `OUT_OF_SCOPE_ACTION`
 - `SAFETY_BLOCKED`
+
+Constraint:
+
+- `verdict=approve` requires `reason_code=APPROVED`
+- `verdict=reject` must use one of the non-`APPROVED` reason codes above
 
 `reason_code` is gameplay/business semantics and is separate from `system_error_code`.
 
